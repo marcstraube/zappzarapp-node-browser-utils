@@ -149,8 +149,9 @@ export function validateUrl(
     }
   }
 
-  // Block javascript: and data: URLs (defense in depth)
-  if (parsed.protocol === 'javascript:' || parsed.protocol === 'data:') {
+  // Block dangerous protocols (defense in depth)
+  const dangerousProtocols = ['javascript:', 'data:', 'vbscript:'];
+  if (dangerousProtocols.includes(parsed.protocol.toLowerCase())) {
     throw RequestError.invalidUrl(url, 'dangerous protocol');
   }
 
