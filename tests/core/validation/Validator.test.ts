@@ -279,8 +279,7 @@ describe('Validator', () => {
     });
 
     it('should replace forbidden characters', () => {
-      // Note: regex without g flag only replaces first match
-      expect(Validator.sanitizeFilename('file<name>.txt')).toBe('file_name>.txt');
+      expect(Validator.sanitizeFilename('file<name>.txt')).toBe('file_name_.txt');
     });
 
     it('should replace path traversal', () => {
@@ -313,8 +312,7 @@ describe('Validator', () => {
     });
 
     it('should use custom replacement character', () => {
-      // Note: regex without g flag only replaces first match
-      expect(Validator.sanitizeFilename('file<name>.txt', '-')).toBe('file-name>.txt');
+      expect(Validator.sanitizeFilename('file<name>.txt', '-')).toBe('file-name-.txt');
     });
 
     it('should return download if sanitization results in empty', () => {

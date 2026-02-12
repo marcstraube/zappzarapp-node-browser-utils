@@ -102,8 +102,8 @@ export const FilenameValidator = {
     }
 
     let sanitized = filename
-      // Remove forbidden characters
-      .replace(FORBIDDEN_FILENAME_CHARS, replacement)
+      // Remove forbidden characters (global replacement)
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, replacement)
       // Remove path traversal
       .replace(/\.\./g, replacement)
       // Trim dots and spaces from ends
@@ -160,8 +160,8 @@ export const FilenameValidator = {
 
     // Basic MIME type format: type/subtype with optional parameters
     // e.g., "text/plain", "application/json", "text/html; charset=utf-8"
-    // eslint-disable-next-line security/detect-unsafe-regex -- Regex is safe: no nested quantifiers, limited character classes, bounded by ^ and $
-    if (!/^[a-z]+\/[a-z0-9.+-]+(?:;\s*[a-z0-9-]+=\S+)*$/i.test(mimeType)) {
+    // eslint-disable-next-line security/detect-unsafe-regex -- Safe: [^\s;]+ cannot backtrack with outer group since ; is excluded
+    if (!/^[a-z]+\/[a-z0-9.+-]+(?:;\s*[a-z0-9-]+=[^\s;]+)*$/i.test(mimeType)) {
       return Result.err(
         ValidationError.invalidFormat('mimeType', mimeType, 'type/subtype (e.g., text/plain)')
       );
