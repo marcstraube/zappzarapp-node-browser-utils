@@ -1,0 +1,37 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+
+# Coverage reports
+coverage
+
+# Cache
+.cache
+.vite
+.pnpm-store
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Lock files
+pnpm-lock.yaml
+
+# Claude Code
+.claude/cache/
+.claude/sessions/
+.claude/state/
+.claude/temp/
+.claude/plan.md
+.claude/*-plan.md

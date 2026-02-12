@@ -1,0 +1,15 @@
+export {
+  OfflineQueue,
+  OfflineQueueError,
+  type OfflineQueueErrorCode,
+  type ConflictResolution,
+  type ConflictResolver,
+  type ItemProcessor,
+  type QueueItem,
+  type OfflineQueueConfig,
+  type QueueStats,
+  type SyncHandler,
+  type ErrorHandler,
+  type ConflictHandler,
+  type OfflineQueueInstance,
+} from './OfflineQueue.js';

@@ -1,0 +1,48 @@
+{
+  // Configuration for markdownlint-cli2
+  // https://github.com/DavidAnson/markdownlint-cli2
+  "config": {
+    // Default state for all rules
+    "default": true,
+
+    // MD013: Line length - disabled (often impractical for documentation)
+    "MD013": false,
+
+    // MD033: Allow inline HTML (needed for complex formatting)
+    "MD033": false,
+
+    // MD041: First line should be a top-level heading - disabled for fragments
+    "MD041": false,
+
+    // MD046: Code block style - use fenced (more common than indented)
+    "MD046": {
+      "style": "fenced"
+    },
+
+    // MD024: Allow duplicate headings in different sections
+    "MD024": {
+      "siblings_only": true
+    },
+
+    // MD055: Table pipe style - disabled (Prettier handles table formatting)
+    "MD055": false,
+
+    // MD060: Table column style - disabled (Prettier handles table formatting)
+    "MD060": false
+  },
+
+  // Files to ignore
+  "ignores": [
+    "**/node_modules/**",
+    "dist/**",
+    "coverage/**",
+    ".git/**",
+    "CHANGELOG.md",
+    ".claude/cache/**",
+    ".claude/sessions/**",
+    ".claude/state/**",
+    ".claude/temp/**",
+    ".claude/plan.md",
+    ".claude/*-plan.md"
+  ]
+}

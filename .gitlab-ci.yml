@@ -1,0 +1,84 @@
+image: node:20
+
+include:
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
+stages:
+  - test
+  - security
+
+cache:
+  paths:
+    - node_modules/
+    - .pnpm-store/
+
+.node-setup: &node-setup
+  before_script:
+    - corepack enable
+    - corepack prepare pnpm@10 --activate
+    - pnpm config set store-dir .pnpm-store
+    - pnpm install --frozen-lockfile
+
+format:
+  <<: *node-setup
+  stage: test
+  script:
+    - pnpm run format:check
+
+lint:
+  <<: *node-setup
+  stage: test
+  script:
+    - pnpm run lint
+
+typecheck:
+  <<: *node-setup
+  stage: test
+  script:
+    - pnpm run typecheck
+
+test:
+  <<: *node-setup
+  stage: test
+  script:
+    - pnpm run test:coverage
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+  artifacts:
+    paths:
+      - coverage/
+    expire_in: 1 hour
+
+build:
+  <<: *node-setup
+  stage: test
+  script:
+    - pnpm run build
+    - test -d dist
+
+security:
+  <<: *node-setup
+  stage: test
+  script:
+    - pnpm audit --prod --audit-level=moderate
+
+mutation:
+  <<: *node-setup
+  stage: test
+  needs: [test]
+  script:
+    - pnpm run mutation
+  artifacts:
+    paths:
+      - reports/mutation/
+    expire_in: 1 week
+    when: always
+
+sbom:
+  <<: *node-setup
+  stage: security
+  script:
+    - pnpm run sbom
+  artifacts:
+    paths:
+      - sbom.cdx.json
+    expire_in: 1 week

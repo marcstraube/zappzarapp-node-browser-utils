@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Coverage reports
+coverage/
+
+# Cache
+.cache/
+.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Lock files (keep pnpm-lock.yaml committed)
+package-lock.json
+yarn.lock
+
+# Environment
+.env
+.env.*
+
+# Mutation testing
+reports/
+.stryker-tmp/
+
+# SBOM
+sbom.cdx.json
+
+# Claude Code (non-committed directories/files)
+.claude/cache/
+.claude/sessions/
+.claude/state/
+.claude/temp/
+.claude/settings.local.json
+.claude/plan.md
+.claude/*-plan.md
+docs/api

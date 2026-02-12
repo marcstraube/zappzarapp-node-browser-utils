@@ -1,0 +1,8 @@
+#!/bin/sh
+
+echo "Running pre-push quality checks..."
+
+# Run full quality pipeline (format check, lint, typecheck, tests)
+pnpm run quality
+
+echo "Pre-push checks passed!"

@@ -1,0 +1,260 @@
+{
+  "name": "@zappzarapp/browser-utils",
+  "version": "1.0.0",
+  "description": "Comprehensive browser utilities: storage, cookies, clipboard, keyboard shortcuts, forms, observers, network retry, and more. Type-safe, tree-shakeable, zero dependencies.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./storage": {
+      "types": "./dist/storage/index.d.ts",
+      "import": "./dist/storage/index.js"
+    },
+    "./session": {
+      "types": "./dist/session/index.d.ts",
+      "import": "./dist/session/index.js"
+    },
+    "./logging": {
+      "types": "./dist/logging/index.d.ts",
+      "import": "./dist/logging/index.js"
+    },
+    "./download": {
+      "types": "./dist/download/index.d.ts",
+      "import": "./dist/download/index.js"
+    },
+    "./keyboard": {
+      "types": "./dist/keyboard/index.d.ts",
+      "import": "./dist/keyboard/index.js"
+    },
+    "./html": {
+      "types": "./dist/html/index.d.ts",
+      "import": "./dist/html/index.js"
+    },
+    "./cookie": {
+      "types": "./dist/cookie/index.d.ts",
+      "import": "./dist/cookie/index.js"
+    },
+    "./clipboard": {
+      "types": "./dist/clipboard/index.d.ts",
+      "import": "./dist/clipboard/index.js"
+    },
+    "./url": {
+      "types": "./dist/url/index.d.ts",
+      "import": "./dist/url/index.js"
+    },
+    "./events": {
+      "types": "./dist/events/index.d.ts",
+      "import": "./dist/events/index.js"
+    },
+    "./features": {
+      "types": "./dist/features/index.d.ts",
+      "import": "./dist/features/index.js"
+    },
+    "./network": {
+      "types": "./dist/network/index.d.ts",
+      "import": "./dist/network/index.js"
+    },
+    "./focus": {
+      "types": "./dist/focus/index.d.ts",
+      "import": "./dist/focus/index.js"
+    },
+    "./scroll": {
+      "types": "./dist/scroll/index.d.ts",
+      "import": "./dist/scroll/index.js"
+    },
+    "./form": {
+      "types": "./dist/form/index.d.ts",
+      "import": "./dist/form/index.js"
+    },
+    "./fullscreen": {
+      "types": "./dist/fullscreen/index.d.ts",
+      "import": "./dist/fullscreen/index.js"
+    },
+    "./media": {
+      "types": "./dist/media/index.d.ts",
+      "import": "./dist/media/index.js"
+    },
+    "./notification": {
+      "types": "./dist/notification/index.d.ts",
+      "import": "./dist/notification/index.js"
+    },
+    "./device": {
+      "types": "./dist/device/index.d.ts",
+      "import": "./dist/device/index.js"
+    },
+    "./observe": {
+      "types": "./dist/observe/index.d.ts",
+      "import": "./dist/observe/index.js"
+    },
+    "./idle": {
+      "types": "./dist/idle/index.d.ts",
+      "import": "./dist/idle/index.js"
+    },
+    "./sanitize": {
+      "types": "./dist/sanitize/index.d.ts",
+      "import": "./dist/sanitize/index.js"
+    },
+    "./indexeddb": {
+      "types": "./dist/indexeddb/index.d.ts",
+      "import": "./dist/indexeddb/index.js"
+    },
+    "./websocket": {
+      "types": "./dist/websocket/index.d.ts",
+      "import": "./dist/websocket/index.js"
+    },
+    "./csp": {
+      "types": "./dist/csp/index.d.ts",
+      "import": "./dist/csp/index.js"
+    },
+    "./visibility": {
+      "types": "./dist/visibility/index.d.ts",
+      "import": "./dist/visibility/index.js"
+    },
+    "./geolocation": {
+      "types": "./dist/geolocation/index.d.ts",
+      "import": "./dist/geolocation/index.js"
+    },
+    "./performance": {
+      "types": "./dist/performance/index.d.ts",
+      "import": "./dist/performance/index.js"
+    },
+    "./broadcast": {
+      "types": "./dist/broadcast/index.d.ts",
+      "import": "./dist/broadcast/index.js"
+    },
+    "./offline": {
+      "types": "./dist/offline/index.d.ts",
+      "import": "./dist/offline/index.js"
+    },
+    "./request": {
+      "types": "./dist/request/index.d.ts",
+      "import": "./dist/request/index.js"
+    },
+    "./encryption": {
+      "types": "./dist/encryption/index.d.ts",
+      "import": "./dist/encryption/index.js"
+    },
+    "./a11y": {
+      "types": "./dist/a11y/index.d.ts",
+      "import": "./dist/a11y/index.js"
+    },
+    "./cache": {
+      "types": "./dist/cache/index.d.ts",
+      "import": "./dist/cache/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint 'src/**/*.ts' 'tests/**/*.ts' --max-warnings=0",
+    "lint:fix": "eslint 'src/**/*.ts' 'tests/**/*.ts' --fix",
+    "lint:md": "markdownlint-cli2 '**/*.md'",
+    "lint:md:fix": "markdownlint-cli2 --fix '**/*.md'",
+    "lint:secrets": "secretlint '**/*'",
+    "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts' '**/*.json' '**/*.md' '!node_modules/**' '!dist/**' '!coverage/**' '!pnpm-lock.yaml'",
+    "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.ts' '**/*.json' '**/*.md' '!node_modules/**' '!dist/**' '!coverage/**' '!pnpm-lock.yaml'",
+    "typecheck": "tsc --noEmit",
+    "size": "size-limit",
+    "size:check": "size-limit --limit",
+    "mutation": "stryker run",
+    "sbom": "cdxgen -t js -o sbom.cdx.json --spec-version 1.5 --no-recurse --no-babel",
+    "docs": "typedoc",
+    "quality": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && pnpm run size:check && pnpm audit --prod --audit-level=moderate",
+    "prepare": "husky || true"
+  },
+  "keywords": [
+    "browser",
+    "utilities",
+    "typescript",
+    "localStorage",
+    "sessionStorage",
+    "cookies",
+    "clipboard",
+    "keyboard-shortcuts",
+    "form-validation",
+    "intersection-observer",
+    "resize-observer",
+    "mutation-observer",
+    "idle-callback",
+    "network-retry",
+    "debounce",
+    "throttle",
+    "fullscreen",
+    "notifications",
+    "media-queries",
+    "focus-trap",
+    "scroll-lock",
+    "tree-shakeable",
+    "zero-dependencies"
+  ],
+  "author": "Marc Straube <email@marcstraube.de>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marcstraube/zappzarapp-browser-utils.git"
+  },
+  "bugs": {
+    "url": "https://github.com/marcstraube/zappzarapp-browser-utils/issues"
+  },
+  "homepage": "https://github.com/marcstraube/zappzarapp-browser-utils#readme",
+  "devDependencies": {
+    "@commitlint/cli": "^20.4.1",
+    "@commitlint/config-conventional": "^20.4.1",
+    "@cyclonedx/cdxgen": "^12.0.0",
+    "@eslint/compat": "^2.0.2",
+    "@eslint/js": "^10.0.1",
+    "@secretlint/secretlint-rule-preset-recommend": "^11.3.1",
+    "@size-limit/preset-small-lib": "^12.0.0",
+    "@stryker-mutator/core": "^9.5.1",
+    "@stryker-mutator/vitest-runner": "^9.5.1",
+    "@types/node": "^25.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/parser": "^8.55.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-boundaries": "^5.4.0",
+    "eslint-plugin-jsdoc": "^62.5.4",
+    "eslint-plugin-prettier": "^5.0.0",
+    "eslint-plugin-security": "^3.0.0",
+    "eslint-plugin-sonarjs": "^3.0.7",
+    "fake-indexeddb": "^6.2.5",
+    "globals": "^17.3.0",
+    "happy-dom": "^20.6.1",
+    "husky": "^9.0.0",
+    "lint-staged": "^16.0.0",
+    "markdownlint-cli2": "^0.20.0",
+    "prettier": "^3.0.0",
+    "secretlint": "^11.3.1",
+    "size-limit": "^12.0.0",
+    "typedoc": "^0.28.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "peerDependencies": {
+    "dompurify": ">=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "dompurify": {
+      "optional": true
+    }
+  },
+  "pnpm": {
+    "overrides": {
+      "@isaacs/brace-expansion": ">=5.0.1"
+    }
+  }
+}

@@ -1,0 +1,212 @@
+[
+  {
+    "name": "core",
+    "path": "dist/core/index.js",
+    "import": "*",
+    "limit": "7.5 kB"
+  },
+  {
+    "name": "storage",
+    "path": "dist/storage/index.js",
+    "import": "*",
+    "limit": "7 kB"
+  },
+  {
+    "name": "session",
+    "path": "dist/session/index.js",
+    "import": "*",
+    "limit": "6.5 kB"
+  },
+  {
+    "name": "logging",
+    "path": "dist/logging/index.js",
+    "import": "*",
+    "limit": "1.5 kB"
+  },
+  {
+    "name": "download",
+    "path": "dist/download/index.js",
+    "import": "*",
+    "limit": "4.5 kB"
+  },
+  {
+    "name": "keyboard",
+    "path": "dist/keyboard/index.js",
+    "import": "*",
+    "limit": "1.5 kB"
+  },
+  {
+    "name": "html",
+    "path": "dist/html/index.js",
+    "import": "*",
+    "limit": "2.5 kB"
+  },
+  {
+    "name": "cookie",
+    "path": "dist/cookie/index.js",
+    "import": "*",
+    "limit": "5.5 kB"
+  },
+  {
+    "name": "clipboard",
+    "path": "dist/clipboard/index.js",
+    "import": "*",
+    "limit": "4.5 kB"
+  },
+  {
+    "name": "url",
+    "path": "dist/url/index.js",
+    "import": "*",
+    "limit": "6 kB"
+  },
+  {
+    "name": "events",
+    "path": "dist/events/index.js",
+    "import": "*",
+    "limit": "2 kB"
+  },
+  {
+    "name": "features",
+    "path": "dist/features/index.js",
+    "import": "*",
+    "limit": "1.5 kB"
+  },
+  {
+    "name": "network",
+    "path": "dist/network/index.js",
+    "import": "*",
+    "limit": "3 kB"
+  },
+  {
+    "name": "focus",
+    "path": "dist/focus/index.js",
+    "import": "*",
+    "limit": "2 kB"
+  },
+  {
+    "name": "scroll",
+    "path": "dist/scroll/index.js",
+    "import": "*",
+    "limit": "2 kB"
+  },
+  {
+    "name": "form",
+    "path": "dist/form/index.js",
+    "import": "*",
+    "limit": "4.5 kB"
+  },
+  {
+    "name": "fullscreen",
+    "path": "dist/fullscreen/index.js",
+    "import": "*",
+    "limit": "2 kB"
+  },
+  {
+    "name": "media",
+    "path": "dist/media/index.js",
+    "import": "*",
+    "limit": "1.5 kB"
+  },
+  {
+    "name": "notification",
+    "path": "dist/notification/index.js",
+    "import": "*",
+    "limit": "2 kB"
+  },
+  {
+    "name": "device",
+    "path": "dist/device/index.js",
+    "import": "*",
+    "limit": "1.5 kB"
+  },
+  {
+    "name": "observe",
+    "path": "dist/observe/index.js",
+    "import": "*",
+    "limit": "2.5 kB"
+  },
+  {
+    "name": "idle",
+    "path": "dist/idle/index.js",
+    "import": "*",
+    "limit": "1.5 kB"
+  },
+  {
+    "name": "sanitize",
+    "path": "dist/sanitize/index.js",
+    "import": "*",
+    "limit": "1.5 kB"
+  },
+  {
+    "name": "indexeddb",
+    "path": "dist/indexeddb/index.js",
+    "import": "*",
+    "limit": "2.5 kB"
+  },
+  {
+    "name": "websocket",
+    "path": "dist/websocket/index.js",
+    "import": "*",
+    "limit": "2.5 kB"
+  },
+  {
+    "name": "csp",
+    "path": "dist/csp/index.js",
+    "import": "*",
+    "limit": "3.5 kB"
+  },
+  {
+    "name": "visibility",
+    "path": "dist/visibility/index.js",
+    "import": "*",
+    "limit": "1 kB"
+  },
+  {
+    "name": "geolocation",
+    "path": "dist/geolocation/index.js",
+    "import": "*",
+    "limit": "1.5 kB"
+  },
+  {
+    "name": "performance",
+    "path": "dist/performance/index.js",
+    "import": "*",
+    "limit": "2 kB"
+  },
+  {
+    "name": "broadcast",
+    "path": "dist/broadcast/index.js",
+    "import": "*",
+    "limit": "2 kB"
+  },
+  {
+    "name": "offline",
+    "path": "dist/offline/index.js",
+    "import": "*",
+    "limit": "5 kB"
+  },
+  {
+    "name": "request",
+    "path": "dist/request/index.js",
+    "import": "*",
+    "limit": "4.5 kB"
+  },
+  {
+    "name": "encryption",
+    "path": "dist/encryption/index.js",
+    "import": "*",
+    "limit": "6.5 kB"
+  },
+  {
+    "name": "a11y",
+    "path": "dist/a11y/index.js",
+    "import": "*",
+    "limit": "3.5 kB"
+  },
+  {
+    "name": "cache",
+    "path": "dist/cache/index.js",
+    "import": "*",
+    "limit": "6 kB"
+  }
+]

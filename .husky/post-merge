@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# Check if package.json or pnpm-lock.yaml changed
+CHANGED=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null | grep -E '^(package\.json|pnpm-lock\.yaml)$')
+
+if [ -n "$CHANGED" ]; then
+  echo ""
+  echo -e "\033[0;33m⚠️  Dependencies changed! Run:\033[0m"
+  echo ""
+  echo -e "   \033[0;36mpnpm install\033[0m"
+  echo ""
+fi
