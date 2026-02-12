@@ -2,6 +2,7 @@
   "packages": {
     ".": {
       "release-type": "node",
+      "bootstrap-sha": "ac01e25d7b9b140150d6af37de6d84e095f23b50",
       "package-name": "@zappzarapp/browser-utils",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
