@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ValidationError, Result } from '../../../src/core/index.js';
-import { UrlValidator } from '../../../src/core/validation';
+import { UrlValidator } from '../../../src/core/validation/index.js';
 
 describe('UrlValidator', () => {
   // ===========================================================================

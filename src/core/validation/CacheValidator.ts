@@ -7,7 +7,8 @@
  *
  * @internal
  */
-import { ValidationError, Result } from '..';
+import { ValidationError } from '../errors/ValidationError.js';
+import { Result } from '../result/Result.js';
 
 /**
  * Valid cache key pattern: word chars, colons, dots, hyphens, slashes.

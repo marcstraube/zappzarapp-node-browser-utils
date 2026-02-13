@@ -24,7 +24,7 @@
  * const nonce = CspUtils.generateNonce();
  * ```
  */
-import { CryptoError } from '../core';
+import { CryptoError } from '../core/index.js';
 
 /**
  * CSP directive names.

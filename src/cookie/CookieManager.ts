@@ -27,7 +27,7 @@
  * const all = CookieManager.all(); // { theme: 'dark', ... }
  * ```
  */
-import { Result, Validator, ValidationError, CookieError } from '../core';
+import { Result, Validator, ValidationError, CookieError } from '../core/index.js';
 import { CookieOptions, type CookieOptionsInput } from './CookieOptions.js';
 
 export const CookieManager = {

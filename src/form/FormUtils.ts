@@ -22,7 +22,7 @@
  * ```
  */
 
-import type { CleanupFn } from '../core';
+import type { CleanupFn } from '../core/index.js';
 
 // ============================================================================
 // Strategy Pattern: Element Dirty Checkers

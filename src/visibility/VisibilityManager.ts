@@ -34,7 +34,7 @@
  * cleanupHidden();
  * ```
  */
-import type { CleanupFn } from '../core';
+import type { CleanupFn } from '../core/index.js';
 
 export const VisibilityManager = {
   // =========================================================================

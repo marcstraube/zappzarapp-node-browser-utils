@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { UrlBuilder } from '../../src/url';
-import { UrlError, ValidationError, Result } from '../../src/core';
+import { UrlBuilder } from '../../src/url/index.js';
+import { UrlError, ValidationError, Result } from '../../src/core/index.js';
 
 describe('UrlBuilder', () => {
   let originalWindow: typeof globalThis.window;

@@ -27,7 +27,7 @@ import {
   CryptoError,
   type BroadcastErrorCode,
   type CleanupFn,
-} from '../core';
+} from '../core/index.js';
 
 export { BroadcastError };
 export type { BroadcastErrorCode };

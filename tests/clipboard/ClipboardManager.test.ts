@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ClipboardManager } from '../../src/clipboard';
-import { ClipboardError, ValidationError, Result } from '../../src/core';
+import { ClipboardManager } from '../../src/clipboard/index.js';
+import { ClipboardError, ValidationError, Result } from '../../src/core/index.js';
 
 /**
  * Mock clipboard API for testing.

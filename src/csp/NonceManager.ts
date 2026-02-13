@@ -43,7 +43,7 @@
  * nonceManager.rotateNonce();
  * ```
  */
-import { type CleanupFn, ValidationError, CspError } from '../core';
+import { type CleanupFn, ValidationError, CspError } from '../core/index.js';
 import { CspUtils } from './CspUtils.js';
 
 /**

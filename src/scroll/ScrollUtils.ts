@@ -32,8 +32,8 @@
  * }, { throttle: 100 });
  * ```
  */
-import { throttle, type ThrottledFunction } from '../core';
-import type { CleanupFn } from '../core';
+import { throttle, type ThrottledFunction } from '../core/index.js';
+import type { CleanupFn } from '../core/index.js';
 
 export interface ScrollToOptions {
   /** Scroll behavior */

@@ -20,7 +20,7 @@
  * AriaUtils.remove(button, 'expanded');
  * ```
  */
-import { ValidationError } from '../core';
+import { ValidationError } from '../core/index.js';
 
 /**
  * Valid ARIA attribute names (without the 'aria-' prefix).

@@ -31,7 +31,7 @@ import {
   type BaseStorageStats,
   StorageConfig,
   type StorageConfigOptions,
-} from '../storage';
+} from '../storage/index.js';
 
 /**
  * Statistics about session storage state.

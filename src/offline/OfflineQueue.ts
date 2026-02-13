@@ -223,9 +223,9 @@
  * });
  * ```
  */
-import { BrowserUtilsError, generateUUID, CryptoError, type CleanupFn } from '../core';
-import { IndexedDBManager, type IndexedDBInstance } from '../indexeddb';
-import { NetworkStatus } from '../network';
+import { BrowserUtilsError, generateUUID, CryptoError, type CleanupFn } from '../core/index.js';
+import { IndexedDBManager, type IndexedDBInstance } from '../indexeddb/index.js';
+import { NetworkStatus } from '../network/index.js';
 
 // =============================================================================
 // Types

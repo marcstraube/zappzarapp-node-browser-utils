@@ -21,7 +21,7 @@
  *   .withSecure(true);
  * ```
  */
-import { Validator, ValidationError } from '../core';
+import { Validator, ValidationError } from '../core/index.js';
 
 export type SameSiteValue = 'Strict' | 'Lax' | 'None';
 

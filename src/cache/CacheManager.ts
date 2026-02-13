@@ -39,7 +39,7 @@
  * cache.destroy();
  * ```
  */
-import { BrowserUtilsError, Validator, Result } from '../core';
+import { BrowserUtilsError, Validator, Result } from '../core/index.js';
 
 // =============================================================================
 // Error Types

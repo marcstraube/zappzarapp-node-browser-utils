@@ -44,7 +44,7 @@
  * interceptor.destroy();
  * ```
  */
-import { BrowserUtilsError, type CleanupFn } from '../core';
+import { BrowserUtilsError, type CleanupFn } from '../core/index.js';
 import { applyAuth } from './RequestAuth.js';
 import {
   runRequestMiddleware,

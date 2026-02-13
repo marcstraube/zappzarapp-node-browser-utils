@@ -11,7 +11,7 @@
  * const custom = DownloadOptions.create('file.bin', 'application/octet-stream');
  * ```
  */
-import { Validator } from '../core';
+import { Validator } from '../core/index.js';
 
 /**
  * Options for creating downloads.

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Validator, Result, ValidationError } from '../../../src/core/index.js';
-import { CacheValidator } from '../../../src/core/validation';
+import { CacheValidator } from '../../../src/core/validation/index.js';
 
 describe('CacheValidator', () => {
   describe('cacheKey', () => {

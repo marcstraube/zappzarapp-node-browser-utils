@@ -28,8 +28,8 @@
  * cleanup();
  * ```
  */
-import { Validator, ValidationError, UrlError, Result } from '../core';
-import type { CleanupFn } from '../core';
+import { Validator, ValidationError, UrlError, Result } from '../core/index.js';
+import type { CleanupFn } from '../core/index.js';
 
 export interface HistoryState {
   [key: string]: unknown;

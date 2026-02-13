@@ -36,7 +36,7 @@
  * );
  * ```
  */
-import type { CleanupFn } from '../core';
+import type { CleanupFn } from '../core/index.js';
 
 export type BoxModel = 'content-box' | 'border-box' | 'device-pixel-content-box';
 

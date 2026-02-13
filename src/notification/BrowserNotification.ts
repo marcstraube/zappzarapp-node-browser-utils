@@ -28,7 +28,7 @@
  * }
  * ```
  */
-import { Result, NotificationError } from '../core';
+import { Result, NotificationError } from '../core/index.js';
 
 /** Tracked notifications for bulk operations */
 const activeNotifications = new Set<Notification>();
