@@ -8,12 +8,17 @@ and this project adheres to
 
 ## [1.0.2](https://github.com/marcstraube/zappzarapp-browser-utils/compare/v1.0.1...v1.0.2) (2026-02-13)
 
-
 ### Bug Fixes
 
-* **build:** resolve ERR_UNSUPPORTED_DIR_IMPORT in ESM output ([#12](https://github.com/marcstraube/zappzarapp-browser-utils/issues/12)) ([fc614eb](https://github.com/marcstraube/zappzarapp-browser-utils/commit/fc614eb6a419f1073b543bd74920bd3e4247a099))
-* **ci:** align CI job names with branch protection required checks ([9a6d3f0](https://github.com/marcstraube/zappzarapp-browser-utils/commit/9a6d3f0b7228859fecce36b238885d2be949045a))
-* **hooks:** prevent post-merge hook failure on no dependency changes ([#16](https://github.com/marcstraube/zappzarapp-browser-utils/issues/16)) ([f022780](https://github.com/marcstraube/zappzarapp-browser-utils/commit/f02278044086f86b8ec2d4b72d0b69cf1b238c62))
+- **build:** resolve ERR_UNSUPPORTED_DIR_IMPORT in ESM output
+  ([#12](https://github.com/marcstraube/zappzarapp-browser-utils/issues/12))
+  ([fc614eb](https://github.com/marcstraube/zappzarapp-browser-utils/commit/fc614eb6a419f1073b543bd74920bd3e4247a099))
+- **ci:** align CI job names with branch protection required checks
+  ([#14](https://github.com/marcstraube/zappzarapp-browser-utils/pull/14))
+  ([9a6d3f0](https://github.com/marcstraube/zappzarapp-browser-utils/commit/9a6d3f0b7228859fecce36b238885d2be949045a))
+- **hooks:** prevent post-merge hook failure on no dependency changes
+  ([#16](https://github.com/marcstraube/zappzarapp-browser-utils/issues/16))
+  ([f022780](https://github.com/marcstraube/zappzarapp-browser-utils/commit/f02278044086f86b8ec2d4b72d0b69cf1b238c62))
 
 ## [1.0.1] - 2026-02-13
 
