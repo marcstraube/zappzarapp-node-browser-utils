@@ -11,7 +11,6 @@ permissions:
 
 jobs:
   quality:
-    name: Quality Checks
     runs-on: ubuntu-latest
 
     steps:
@@ -53,7 +52,6 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   build:
-    name: Build
     runs-on: ubuntu-latest
     needs: quality
 
@@ -89,7 +87,6 @@ jobs:
         run: pnpm run size
 
   security:
-    name: Security Audit
     runs-on: ubuntu-latest
 
     steps:
@@ -114,7 +111,6 @@ jobs:
         run: pnpm audit --prod --audit-level=moderate
 
   mutation:
-    name: Mutation Testing
     runs-on: ubuntu-latest
     needs: quality
 
@@ -147,7 +143,6 @@ jobs:
           path: reports/mutation/
 
   sbom:
-    name: SBOM Generation
     runs-on: ubuntu-latest
     needs: quality
 
