@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Check if package.json or pnpm-lock.yaml changed
-CHANGED=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null | grep -E '^(package\.json|pnpm-lock\.yaml)$')
+CHANGED=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null | grep -E '^(package\.json|pnpm-lock\.yaml)$' || true)
 
 if [ -n "$CHANGED" ]; then
   echo ""
