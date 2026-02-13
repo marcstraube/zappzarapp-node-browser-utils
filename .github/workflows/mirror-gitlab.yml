@@ -28,4 +28,5 @@ jobs:
           ssh-keyscan gitlab.com >> ~/.ssh/known_hosts 2>/dev/null
 
           git remote add gitlab git@gitlab.com:marcstraube/zappzarapp-browser-utils.git
-          git push gitlab --mirror
+          git push gitlab --all --force
+          git push gitlab --tags --force
