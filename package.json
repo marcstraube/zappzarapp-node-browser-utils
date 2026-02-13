@@ -200,12 +200,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marcstraube/zappzarapp-browser-utils.git"
+    "url": "git+https://github.com/marcstraube/zappzarapp-node-browser-utils.git"
   },
   "bugs": {
-    "url": "https://github.com/marcstraube/zappzarapp-browser-utils/issues"
+    "url": "https://github.com/marcstraube/zappzarapp-node-browser-utils/issues"
   },
-  "homepage": "https://github.com/marcstraube/zappzarapp-browser-utils#readme",
+  "homepage": "https://github.com/marcstraube/zappzarapp-node-browser-utils#readme",
   "devDependencies": {
     "@commitlint/cli": "^20.4.1",
     "@commitlint/config-conventional": "^20.4.1",

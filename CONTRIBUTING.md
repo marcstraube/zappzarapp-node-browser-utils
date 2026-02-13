@@ -5,8 +5,8 @@ Thank you for your interest in contributing!
 ## Development Setup
 
 ```bash
-git clone git@github.com:marcstraube/zappzarapp-browser-utils.git
-cd zappzarapp-browser-utils
+git clone git@github.com:marcstraube/zappzarapp-node-browser-utils.git
+cd zappzarapp-node-browser-utils
 pnpm install
 ```
 

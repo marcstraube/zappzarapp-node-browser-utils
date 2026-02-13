@@ -8,8 +8,8 @@ body:
         Thanks for reporting a bug! Please fill out the sections below.
 
         **Security vulnerabilities** should be reported privately via
-        [GitHub Security Advisories](https://github.com/marcstraube/zappzarapp-browser-utils/security/advisories/new)
-        or email (see [SECURITY.md](https://github.com/marcstraube/zappzarapp-browser-utils/blob/master/SECURITY.md)).
+        [GitHub Security Advisories](https://github.com/marcstraube/zappzarapp-node-browser-utils/security/advisories/new)
+        or email (see [SECURITY.md](https://github.com/marcstraube/zappzarapp-node-browser-utils/blob/master/SECURITY.md)).
 
   - type: input
     id: module

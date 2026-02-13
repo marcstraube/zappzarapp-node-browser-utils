@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@zappzarapp/browser-utils.svg)](https://www.npmjs.com/package/@zappzarapp/browser-utils)
 [![Node.js Version](https://img.shields.io/node/v/@zappzarapp/browser-utils.svg)](https://www.npmjs.com/package/@zappzarapp/browser-utils)
 [![License](https://img.shields.io/npm/l/@zappzarapp/browser-utils.svg)](https://www.npmjs.com/package/@zappzarapp/browser-utils)
-[![CI](https://github.com/marcstraube/zappzarapp-browser-utils/actions/workflows/ci.yml/badge.svg)](https://github.com/marcstraube/zappzarapp-browser-utils/actions/workflows/ci.yml)
+[![CI](https://github.com/marcstraube/zappzarapp-node-browser-utils/actions/workflows/ci.yml/badge.svg)](https://github.com/marcstraube/zappzarapp-node-browser-utils/actions/workflows/ci.yml)
 
 Zero-dependency browser utilities with security-first design — type-safe,
 tree-shakeable, and fully tested.

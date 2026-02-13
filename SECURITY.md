@@ -13,7 +13,7 @@
 Instead, please report them via GitHub's private vulnerability reporting:
 
 1. Go to the
-   [Security Advisories page](https://github.com/marcstraube/zappzarapp-browser-utils/security/advisories/new)
+   [Security Advisories page](https://github.com/marcstraube/zappzarapp-node-browser-utils/security/advisories/new)
 2. Click "Report a vulnerability"
 3. Fill in the details
 

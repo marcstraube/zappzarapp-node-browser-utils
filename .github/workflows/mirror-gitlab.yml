@@ -27,6 +27,6 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan gitlab.com >> ~/.ssh/known_hosts 2>/dev/null
 
-          git remote add gitlab git@gitlab.com:marcstraube/zappzarapp-browser-utils.git
+          git remote add gitlab git@gitlab.com:marcstraube/zappzarapp-node-browser-utils.git
           git push gitlab --all --force
           git push gitlab --tags --force
