@@ -39,7 +39,7 @@
  * const { debug, info, warn, error } = createLogger({ prefix: '[MyApp]' });
  * ```
  */
-import type { LoggerLike } from '../core';
+import type { LoggerLike } from '../core/index.js';
 import { LogLevel, logLevelName } from './LogLevel.js';
 import { LoggerConfig, type LoggerConfigOptions, type ConsoleAdapter } from './LoggerConfig.js';
 

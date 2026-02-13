@@ -5,7 +5,8 @@
  *
  * @internal
  */
-import { ValidationError, Result } from '..';
+import { ValidationError } from '../errors/ValidationError.js';
+import { Result } from '../result/Result.js';
 
 /**
  * Safe URL protocols that are explicitly allowed.

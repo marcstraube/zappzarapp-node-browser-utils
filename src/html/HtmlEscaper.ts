@@ -23,7 +23,7 @@
  * ```
  */
 
-import { ValidationError } from '../core';
+import { ValidationError } from '../core/index.js';
 
 /**
  * HTML entity map for escaping.

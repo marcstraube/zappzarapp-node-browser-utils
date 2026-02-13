@@ -164,7 +164,7 @@
  * ws.close();
  * ```
  */
-import { WebSocketError, type WebSocketErrorCode, type CleanupFn } from '../core';
+import { WebSocketError, type WebSocketErrorCode, type CleanupFn } from '../core/index.js';
 
 export { WebSocketError };
 export type { WebSocketErrorCode };

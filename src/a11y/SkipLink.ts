@@ -16,8 +16,8 @@
  * cleanup();
  * ```
  */
-import type { CleanupFn } from '../core';
-import { ValidationError } from '../core';
+import type { CleanupFn } from '../core/index.js';
+import { ValidationError } from '../core/index.js';
 
 /**
  * Configuration options for a skip link.

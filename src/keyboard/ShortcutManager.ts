@@ -58,7 +58,7 @@ export interface ShortcutHandlerOptions {
   readonly once?: boolean;
 }
 
-import type { CleanupFn } from '../core';
+import type { CleanupFn } from '../core/index.js';
 
 export const ShortcutManager = {
   /**

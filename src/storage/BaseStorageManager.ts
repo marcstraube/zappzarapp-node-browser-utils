@@ -14,9 +14,9 @@
  * @see StorageManager - localStorage implementation
  * @see SessionStorageManager - sessionStorage implementation
  */
-import { Result, StorageError, ValidationError, Validator } from '../core';
-import { MemoryStorage, type StorageEntry } from './MemoryStorage';
-import { StorageConfig } from './StorageConfig';
+import { Result, StorageError, ValidationError, Validator } from '../core/index.js';
+import { MemoryStorage, type StorageEntry } from './MemoryStorage.js';
+import { StorageConfig } from './StorageConfig.js';
 
 /**
  * Type guard that validates whether an unknown parsed value has the expected

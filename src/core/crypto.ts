@@ -16,7 +16,7 @@
  * ```
  */
 
-import { BrowserUtilsError } from './errors';
+import { BrowserUtilsError } from './errors/index.js';
 
 /**
  * Crypto-specific error codes.

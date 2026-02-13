@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { RetryQueue } from '../../src/network';
-import { NetworkError } from '../../src/core';
+import { RetryQueue } from '../../src/network/index.js';
+import { NetworkError } from '../../src/core/index.js';
 
 describe('RetryQueue', () => {
   beforeEach(() => {

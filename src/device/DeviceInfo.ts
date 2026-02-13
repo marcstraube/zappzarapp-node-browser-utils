@@ -30,7 +30,7 @@
  * ```
  */
 
-import type { CleanupFn } from '../core';
+import type { CleanupFn } from '../core/index.js';
 
 /** Minimal User-Agent Client Hints type (Chromium-only as of 2026) */
 interface NavigatorUAData {

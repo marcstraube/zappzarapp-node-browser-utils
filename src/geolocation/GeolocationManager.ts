@@ -38,7 +38,7 @@
  * }
  * ```
  */
-import { Result, GeolocationError, type CleanupFn } from '../core';
+import { Result, GeolocationError, type CleanupFn } from '../core/index.js';
 
 /**
  * Options for geolocation requests.

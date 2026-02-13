@@ -5,7 +5,8 @@
  *
  * @internal
  */
-import { ValidationError, Result } from '..';
+import { ValidationError } from '../errors/ValidationError.js';
+import { Result } from '../result/Result.js';
 
 /**
  * Maximum clipboard text length (10MB).

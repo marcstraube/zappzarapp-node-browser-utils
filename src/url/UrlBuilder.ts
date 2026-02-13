@@ -28,7 +28,7 @@
  *   .toURL();
  * ```
  */
-import { Result, UrlError, Validator, ValidationError } from '../core';
+import { Result, UrlError, Validator, ValidationError } from '../core/index.js';
 
 export class UrlBuilder {
   private readonly url: URL;

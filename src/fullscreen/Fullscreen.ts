@@ -27,7 +27,7 @@
  * });
  * ```
  */
-import { Result, FullscreenError } from '../core';
+import { Result, FullscreenError } from '../core/index.js';
 import type { CleanupFn } from '../core/types.js';
 
 // Extend Element and Document for vendor-prefixed APIs

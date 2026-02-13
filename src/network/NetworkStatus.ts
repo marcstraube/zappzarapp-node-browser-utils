@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { CleanupFn } from '../core';
+import type { CleanupFn } from '../core/index.js';
 
 export type ConnectionType =
   | 'wifi'

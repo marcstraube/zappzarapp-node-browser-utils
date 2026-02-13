@@ -16,7 +16,7 @@
  * const modified = config.withMaxEntries(200).withPrefix('newApp');
  * ```
  */
-import { Validator, noopLogger, type LoggerLike } from '../core';
+import { Validator, noopLogger, type LoggerLike } from '../core/index.js';
 
 /**
  * Options for creating StorageConfig.

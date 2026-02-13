@@ -2,7 +2,7 @@
  * WebSocketManager Tests.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { WebSocketManager, WebSocketError } from '../../src/websocket';
+import { WebSocketManager, WebSocketError } from '../../src/websocket/index.js';
 
 describe('WebSocketManager', () => {
   describe('WebSocketError', () => {

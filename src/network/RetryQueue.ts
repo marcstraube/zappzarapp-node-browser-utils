@@ -50,7 +50,7 @@
  * }
  * ```
  */
-import { NetworkError, type CleanupFn } from '../core';
+import { NetworkError, type CleanupFn } from '../core/index.js';
 import { NetworkStatus } from './NetworkStatus.js';
 
 export type BackoffStrategy = 'linear' | 'exponential' | 'constant';

@@ -20,7 +20,7 @@
  * cleanup();
  * ```
  */
-import type { CleanupFn } from '../core';
+import type { CleanupFn } from '../core/index.js';
 
 const MEDIA_QUERY = '(prefers-reduced-motion: reduce)';
 

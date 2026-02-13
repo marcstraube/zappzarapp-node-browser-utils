@@ -34,7 +34,7 @@
  * }
  * ```
  */
-import type { CleanupFn } from '../core';
+import type { CleanupFn } from '../core/index.js';
 
 /**
  * Core Web Vitals and performance metrics.

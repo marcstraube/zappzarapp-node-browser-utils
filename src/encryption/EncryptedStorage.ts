@@ -27,7 +27,7 @@
  * storage.destroy();
  * ```
  */
-import { EncryptionError, Validator, ValidationError } from '../core';
+import { EncryptionError, Validator, ValidationError } from '../core/index.js';
 
 // ============================================================================
 // Constants

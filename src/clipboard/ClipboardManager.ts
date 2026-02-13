@@ -28,7 +28,7 @@
  * }
  * ```
  */
-import { Result, ClipboardError, Validator, ValidationError } from '../core';
+import { Result, ClipboardError, Validator, ValidationError } from '../core/index.js';
 
 export const ClipboardManager = {
   // =========================================================================

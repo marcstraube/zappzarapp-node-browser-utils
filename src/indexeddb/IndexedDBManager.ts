@@ -35,7 +35,7 @@
  * db.close();
  * ```
  */
-import { IndexedDBError, Result, type IndexedDBErrorCode } from '../core';
+import { IndexedDBError, Result, type IndexedDBErrorCode } from '../core/index.js';
 
 export { IndexedDBError };
 export type { IndexedDBErrorCode };

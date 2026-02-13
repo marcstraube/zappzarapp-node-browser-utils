@@ -26,9 +26,9 @@
  * const debug = StorageManager.withDebugLogging<MyData>('myApp');
  * ```
  */
-import type { CleanupFn } from '../core';
-import { BaseStorageManager, type BaseStorageStats, isStorageEntry } from './BaseStorageManager';
-import { StorageConfig, type StorageConfigOptions } from './StorageConfig';
+import type { CleanupFn } from '../core/index.js';
+import { BaseStorageManager, type BaseStorageStats, isStorageEntry } from './BaseStorageManager.js';
+import { StorageConfig, type StorageConfigOptions } from './StorageConfig.js';
 
 /**
  * Statistics about storage state.

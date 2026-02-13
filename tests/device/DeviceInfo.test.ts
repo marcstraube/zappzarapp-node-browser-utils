@@ -5,8 +5,8 @@ import {
   type OrientationLockType,
   type OrientationType,
   type Size,
-} from '../../src/device';
-import type { CleanupFn } from '../../src/core';
+} from '../../src/device/index.js';
+import type { CleanupFn } from '../../src/core/index.js';
 
 /**
  * User agent strings for various devices.
