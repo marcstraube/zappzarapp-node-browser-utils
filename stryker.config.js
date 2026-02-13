@@ -7,6 +7,7 @@ export default {
   htmlReporter: { fileName: 'reports/mutation/mutation.html' },
   vitest_comment: 'vitest runner auto-detects vitest.config.ts',
   disableTypeChecks: 'src/**/*.ts',
+  ignoreStatic: true,
   thresholds: { high: 80, low: 60, break: null },
   tempDirName: '.stryker-tmp',
   // concurrency: default = cpus - 1
