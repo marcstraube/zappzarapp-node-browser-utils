@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-02-13
+
+### Security
+
+- **validation**: Fix ReDoS vulnerability in MIME type regex (`\S+` → `[^\s;]+`)
+  ([CWE-1333](https://cwe.mitre.org/data/definitions/1333.html))
+- **validation**: Fix incomplete string sanitization — add global flag to
+  forbidden character replacement
+  ([CWE-116](https://cwe.mitre.org/data/definitions/116.html))
+- **request**: Fix incomplete URL scheme check — case-insensitive protocol
+  comparison and add `vbscript:` to blocklist
+  ([CWE-20](https://cwe.mitre.org/data/definitions/20.html))
+
 ## [1.0.0] - 2026-02-12
 
 Initial stable release with 35 modules providing comprehensive browser
@@ -145,5 +158,7 @@ utilities. ESM-only, tree-shakeable via subpath exports, zero dependencies.
 - **download**: File download utilities via `Downloader` and `DownloadOptions`
   for generating and triggering file downloads
 
+[1.0.1]:
+  https://github.com/marcstraube/zappzarapp-browser-utils/compare/v1.0.0...v1.0.1
 [1.0.0]:
   https://github.com/marcstraube/zappzarapp-browser-utils/releases/tag/v1.0.0

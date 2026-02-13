@@ -1,6 +1,6 @@
 {
   "name": "@zappzarapp/browser-utils",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Comprehensive browser utilities: storage, cookies, clipboard, keyboard shortcuts, forms, observers, network retry, and more. Type-safe, tree-shakeable, zero dependencies.",
   "type": "module",
   "sideEffects": false,
