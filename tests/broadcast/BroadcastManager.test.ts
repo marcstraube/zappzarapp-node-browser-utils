@@ -107,7 +107,9 @@ describe('BroadcastManager', () => {
         onmessageerror: null,
       };
 
-      const MockBroadcastChannel = vi.fn().mockImplementation(() => mockChannel);
+      const MockBroadcastChannel = vi.fn().mockImplementation(function () {
+        return mockChannel;
+      });
 
       originalBroadcastChannel = globalThis.BroadcastChannel;
       globalThis.BroadcastChannel = MockBroadcastChannel as unknown as typeof BroadcastChannel;
@@ -636,7 +638,9 @@ describe('BroadcastManager', () => {
         onmessage: null,
       };
 
-      const MockBroadcastChannel = vi.fn().mockImplementation(() => mockChannel);
+      const MockBroadcastChannel = vi.fn().mockImplementation(function () {
+        return mockChannel;
+      });
 
       originalBroadcastChannel = globalThis.BroadcastChannel;
       globalThis.BroadcastChannel = MockBroadcastChannel as unknown as typeof BroadcastChannel;
