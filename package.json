@@ -233,7 +233,7 @@
     "happy-dom": "^20.6.1",
     "husky": "^9.0.0",
     "lint-staged": "^16.0.0",
-    "markdownlint-cli2": "^0.20.0",
+    "markdownlint-cli2": "^0.22.0",
     "prettier": "^3.0.0",
     "secretlint": "^11.3.1",
     "size-limit": "^12.0.0",
