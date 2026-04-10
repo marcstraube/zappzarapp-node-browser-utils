@@ -113,11 +113,13 @@ describe('WebSocketManager', () => {
     });
 
     it('should create instance with correct initial state', () => {
-      const mockWs = vi.fn().mockImplementation(() => ({
-        readyState: 0,
-        close: vi.fn(),
-        send: vi.fn(),
-      }));
+      const mockWs = vi.fn().mockImplementation(function () {
+        return {
+          readyState: 0,
+          close: vi.fn(),
+          send: vi.fn(),
+        };
+      });
       const originalWs = globalThis.WebSocket;
       globalThis.WebSocket = mockWs as unknown as typeof WebSocket;
 
@@ -158,7 +160,9 @@ describe('WebSocketManager', () => {
         onmessage: null,
       };
 
-      const MockWebSocket = vi.fn().mockImplementation(() => mockWsInstance);
+      const MockWebSocket = vi.fn().mockImplementation(function () {
+        return mockWsInstance;
+      });
       // @ts-expect-error - Mock WebSocket constants
       MockWebSocket.CONNECTING = 0;
       // @ts-expect-error - Mock WebSocket constants
@@ -1211,7 +1215,7 @@ describe('WebSocketManager', () => {
 
     it('should throw WebSocketError when WebSocket constructor fails', () => {
       // Replace the mock to throw on construction
-      const ThrowingWebSocket = vi.fn().mockImplementation(() => {
+      const ThrowingWebSocket = vi.fn().mockImplementation(function () {
         throw new Error('Connection refused');
       });
       // @ts-expect-error - Mock WebSocket constants

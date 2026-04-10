@@ -124,31 +124,40 @@ export default [
       'no-sequences': ['error', { allowInParentheses: false }], // Disallow comma expressions
 
       // Module boundary enforcement
-      'boundaries/element-types': [
+      'boundaries/dependencies': [
         'error',
         {
           default: 'disallow',
           rules: [
             // Entry point can import any module
-            { from: ['entry'], allow: ['core', 'module'] },
+            {
+              from: { type: 'entry' },
+              allow: [{ to: { type: 'core' } }, { to: { type: 'module' } }],
+            },
             // Core can only import from core (internal)
-            { from: ['core'], allow: ['core'] },
+            {
+              from: { type: 'core' },
+              allow: [{ to: { type: 'core' } }],
+            },
             // Domain modules can import from core and from themselves (same family)
             {
-              from: ['module'],
-              allow: ['core', ['module', { family: '${family}' }]],
+              from: { type: 'module' },
+              allow: [
+                { to: { type: 'core' } },
+                { to: { type: 'module', captured: { family: '{{ from.captured.family }}' } } },
+              ],
             },
             // session extends BaseStorageManager from storage
             {
-              from: [['module', { family: 'session' }]],
-              allow: [['module', { family: 'storage' }]],
+              from: { type: 'module', captured: { family: 'session' } },
+              allow: [{ to: { type: 'module', captured: { family: 'storage' } } }],
             },
             // offline integrates indexeddb persistence with network status
             {
-              from: [['module', { family: 'offline' }]],
+              from: { type: 'module', captured: { family: 'offline' } },
               allow: [
-                ['module', { family: 'indexeddb' }],
-                ['module', { family: 'network' }],
+                { to: { type: 'module', captured: { family: 'indexeddb' } } },
+                { to: { type: 'module', captured: { family: 'network' } } },
               ],
             },
           ],
