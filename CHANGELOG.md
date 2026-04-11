@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.0.3...v1.0.4) (2026-04-11)
+
+
+### Bug Fixes
+
+* **ci:** use npm publish for OIDC trusted publishing ([#38](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/38)) ([9f91a5d](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/9f91a5d3d28ef4f58eea34b7cc9e01fd5a6d1eb3))
+
 ## [1.0.3](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.0.2...v1.0.3) (2026-04-10)
 
 ### Bug Fixes
