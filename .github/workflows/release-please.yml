@@ -52,6 +52,10 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         run: pnpm run build
 
+      - name: Update npm for OIDC trusted publishing
+        if: ${{ steps.release.outputs.release_created }}
+        run: npm install -g npm@latest
+
       - name: Publish to npm
         if: ${{ steps.release.outputs.release_created }}
         run: npm publish --access public --provenance
@@ -92,6 +96,9 @@ jobs:
 
       - name: Build package
         run: pnpm run build
+
+      - name: Update npm for OIDC trusted publishing
+        run: npm install -g npm@latest
 
       - name: Publish to npm
         run: npm publish --access public --provenance
