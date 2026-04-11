@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.0.3...v1.1.0) (2026-04-11)
+
+
+### Features
+
+* initial release of @zappzarapp/browser-utils ([ac01e25](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/ac01e25d7b9b140150d6af37de6d84e095f23b50))
+
+
+### Bug Fixes
+
+* **build:** resolve ERR_UNSUPPORTED_DIR_IMPORT in ESM output ([#12](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/12)) ([fc614eb](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/fc614eb6a419f1073b543bd74920bd3e4247a099))
+* **ci:** align CI job names with branch protection required checks ([9a6d3f0](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/9a6d3f0b7228859fecce36b238885d2be949045a))
+* **ci:** use --force for GitLab mirror instead of --mirror ([7504d12](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/7504d12042a0bf1f11f2a7f80cbbc3a608771a2a))
+* **ci:** use --mirror for GitLab push to handle existing tags ([c564881](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/c5648819a08862c5da44386232811d53de0facc0))
+* **eslint-plugin:** crash in &lt;code&gt;no-unnecessary-type-arguments&lt;/co… ([933a4ed](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/933a4ede0353f6909213368ca59ec933028b84ec))
+* **hooks:** prevent post-merge hook failure on no dependency changes ([#16](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/16)) ([f022780](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/f02278044086f86b8ec2d4b72d0b69cf1b238c62))
+* **release:** reset release state to re-release 1.0.2 with provenance ([#18](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/18)) ([f9eb531](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/f9eb5319c1d578982208c38a9716547cffaf3d9f))
+
 ## [1.0.3](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.0.2...v1.0.3) (2026-04-10)
 
 ### Bug Fixes
