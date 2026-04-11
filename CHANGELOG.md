@@ -8,12 +8,14 @@ and this project adheres to
 
 ## [1.0.3](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.0.2...v1.0.3) (2026-04-10)
 
-
 ### Bug Fixes
 
-* **ci:** use --force for GitLab mirror instead of --mirror ([7504d12](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/7504d12042a0bf1f11f2a7f80cbbc3a608771a2a))
-* **ci:** use --mirror for GitLab push to handle existing tags ([c564881](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/c5648819a08862c5da44386232811d53de0facc0))
-* **eslint-plugin:** crash in &lt;code&gt;no-unnecessary-type-arguments&lt;/co… ([933a4ed](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/933a4ede0353f6909213368ca59ec933028b84ec))
+- **ci:** use --force for GitLab mirror instead of --mirror
+  ([7504d12](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/7504d12042a0bf1f11f2a7f80cbbc3a608771a2a))
+- **ci:** use --mirror for GitLab push to handle existing tags
+  ([c564881](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/c5648819a08862c5da44386232811d53de0facc0))
+- **eslint-plugin:** crash in &lt;code&gt;no-unnecessary-type-arguments&lt;/co…
+  ([933a4ed](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/933a4ede0353f6909213368ca59ec933028b84ec))
 
 ## [1.0.2](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.0.1...v1.0.2) (2026-02-13)
 
