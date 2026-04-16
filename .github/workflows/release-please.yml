@@ -40,7 +40,7 @@ jobs:
 
       - name: Setup pnpm
         if: ${{ steps.release.outputs.release_created }}
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -88,7 +88,7 @@ jobs:
           ref: ${{ inputs.tag }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
