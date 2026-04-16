@@ -8,7 +8,7 @@ export default {
   vitest_comment: 'vitest runner auto-detects vitest.config.ts',
   disableTypeChecks: 'src/**/*.ts',
   ignoreStatic: true,
-  thresholds: { high: 80, low: 60, break: null },
+  thresholds: { high: 85, low: 70, break: 85 },
   tempDirName: '.stryker-tmp',
   // concurrency: default = cpus - 1
 };

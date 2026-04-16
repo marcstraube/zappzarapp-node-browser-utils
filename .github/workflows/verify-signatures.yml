@@ -1,0 +1,89 @@
+name: Verify Signatures
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify GPG Signatures
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify all commits are signed (via GitHub API)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Checking commits in this PR/push via GitHub API..."
+
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            # For push events, check commits
+            HEAD_SHA="${{ github.sha }}"
+            BEFORE_SHA="${{ github.event.before }}"
+
+            # Handle new branches where github.event.before is null SHA
+            if [ "${BEFORE_SHA}" = "0000000000000000000000000000000000000000" ]; then
+              echo "New branch detected, checking all commits since master..."
+              BASE_SHA=$(git merge-base origin/master ${HEAD_SHA} 2>/dev/null || echo "")
+              if [ -z "$BASE_SHA" ]; then
+                echo "No common ancestor with master, checking only HEAD commit"
+                BASE_SHA="${HEAD_SHA}^"
+              fi
+            else
+              BASE_SHA="${BEFORE_SHA}"
+            fi
+          fi
+
+          COMMITS=$(git rev-list ${BASE_SHA}..${HEAD_SHA} 2>/dev/null || echo "${HEAD_SHA}")
+          UNSIGNED_COMMITS=()
+
+          for commit in $COMMITS; do
+            # Use GitHub API to check signature verification
+            VERIFIED=$(gh api repos/${{ github.repository }}/commits/${commit} --jq '.commit.verification.verified')
+            if [ "$VERIFIED" != "true" ]; then
+              UNSIGNED_COMMITS+=("$commit")
+              REASON=$(gh api repos/${{ github.repository }}/commits/${commit} --jq '.commit.verification.reason')
+              echo "❌ Commit $commit is NOT verified (reason: $REASON)"
+            else
+              echo "✅ Commit $commit is verified"
+            fi
+          done
+
+          if [ ${#UNSIGNED_COMMITS[@]} -gt 0 ]; then
+            echo ""
+            echo "ERROR: Found ${#UNSIGNED_COMMITS[@]} unverified commit(s)!"
+            echo ""
+            echo "All commits must be GPG-signed for security packages."
+            echo "See CONTRIBUTING.md for setup instructions."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All commits are verified!"
+
+      - name: Verify tag signature (if tagged)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          # Use GitHub API to check tag verification
+          VERIFIED=$(gh api repos/${{ github.repository }}/git/tags/$(gh api repos/${{ github.repository }}/git/ref/tags/${TAG} --jq '.object.sha') --jq '.verification.verified' 2>/dev/null || echo "false")
+          if [ "$VERIFIED" != "true" ]; then
+            echo "❌ Tag $TAG is NOT verified"
+            echo "Create signed tags with: git tag -s"
+            exit 1
+          fi
+          echo "✅ Tag $TAG is verified"
