@@ -651,9 +651,12 @@ export const OfflineQueue = {
 
     // Rate limiting helper: check if we can process another item
     const checkRateLimit = (): boolean => {
+      // Defensive guard - callers already check for rateLimit before calling
+      /* v8 ignore start */
       if (!rateLimit) {
         return true;
       }
+      /* v8 ignore stop */
 
       const now = Date.now();
       const { windowMs, maxRequestsPerWindow } = rateLimit;
@@ -678,9 +681,12 @@ export const OfflineQueue = {
 
     // Rate limiting helper: calculate delay when limit is exceeded
     const calculateRateLimitDelay = (): number => {
+      // Defensive guard - callers already check for rateLimit before calling
+      /* v8 ignore start */
       if (!rateLimit || operationTimestamps.length === 0) {
         return 0;
       }
+      /* v8 ignore stop */
 
       const now = Date.now();
       const { windowMs } = rateLimit;

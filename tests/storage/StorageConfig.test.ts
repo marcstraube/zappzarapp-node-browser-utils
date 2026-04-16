@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { StorageConfig } from '../../src/storage/index.js';
 import { Logger } from '../../src/logging/index.js';
 import { ValidationError, noopLogger, type LoggerLike } from '../../src/core/index.js';
@@ -108,6 +108,29 @@ describe('StorageConfig', () => {
       expect(typeof config.logger.info).toBe('function');
       expect(typeof config.logger.warn).toBe('function');
       expect(typeof config.logger.error).toBe('function');
+    });
+
+    it('should delegate logger calls to console with prefix tag', () => {
+      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const config = StorageConfig.withDebugLogging('myApp');
+      config.logger.debug('test debug');
+      config.logger.info('test info');
+      config.logger.warn('test warn');
+      config.logger.error('test error');
+
+      expect(debugSpy).toHaveBeenCalledWith('[myApp]', 'test debug');
+      expect(infoSpy).toHaveBeenCalledWith('[myApp]', 'test info');
+      expect(warnSpy).toHaveBeenCalledWith('[myApp]', 'test warn');
+      expect(errorSpy).toHaveBeenCalledWith('[myApp]', 'test error');
+
+      debugSpy.mockRestore();
+      infoSpy.mockRestore();
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
     });
   });
 

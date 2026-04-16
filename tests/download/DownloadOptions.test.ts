@@ -41,6 +41,15 @@ describe('DownloadOptions', () => {
 
       expect(options.filename).not.toContain('..');
     });
+
+    it('should skip mimeType validation for empty string', () => {
+      const options = DownloadOptions.create({
+        filename: 'file.txt',
+        mimeType: '',
+      });
+
+      expect(options.mimeType).toBe('');
+    });
   });
 
   describe('json', () => {

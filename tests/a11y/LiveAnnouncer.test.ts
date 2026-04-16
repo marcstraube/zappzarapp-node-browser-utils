@@ -32,6 +32,11 @@ describe('LiveAnnouncer', () => {
       expect(polite.style.width).toBe('1px');
       expect(polite.style.height).toBe('1px');
       expect(polite.style.overflow).toBe('hidden');
+      expect(polite.style.padding).toBe('0px');
+      expect(polite.style.margin).toBe('-1px');
+      expect(polite.style.whiteSpace).toBe('nowrap');
+      expect(polite.style.border).toBe('0px');
+      expect(polite.style.clip).toBe('rect(0, 0, 0, 0)');
 
       announcer.destroy();
     });

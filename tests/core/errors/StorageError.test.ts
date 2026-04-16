@@ -30,6 +30,12 @@ describe('StorageError', () => {
 
       expect(error.message).toBe('localStorage is not available: private browsing mode');
     });
+
+    it('should treat empty string reason as no reason', () => {
+      const error = StorageError.unavailable('');
+
+      expect(error.message).toBe('localStorage is not available');
+    });
   });
 
   describe('quotaExceeded', () => {
