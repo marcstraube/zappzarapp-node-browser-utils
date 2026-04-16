@@ -388,12 +388,13 @@ export abstract class BaseStorageManager<T = unknown> {
 
   protected evictOldest(): void {
     // Memory mode path - unreachable since quota errors only occur with native storage
-    /* v8 ignore next 5 */
+    /* v8 ignore start */
     if (this.isMemoryMode) {
       const evicted = this.memoryStorage.evictOldest(this.config.minSafeEntries);
       this.config.logger.debug(`Emergency eviction (memory): ${evicted} entries`);
       return;
     }
+    /* v8 ignore stop */
 
     const entries = this.entries();
 

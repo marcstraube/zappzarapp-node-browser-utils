@@ -605,5 +605,45 @@ describe('CookieOptions', () => {
 
       expect(options.expires).toEqual(pastDate);
     });
+
+    it('should reject empty domain', () => {
+      expect(() => CookieOptions.create({ name: 'test', domain: '' })).toThrow(ValidationError);
+    });
+
+    it('should reject domain with semicolons', () => {
+      expect(() => CookieOptions.create({ name: 'test', domain: 'bad;domain' })).toThrow(
+        'forbidden characters'
+      );
+    });
+
+    it('should reject domain with spaces', () => {
+      expect(() => CookieOptions.create({ name: 'test', domain: 'bad domain' })).toThrow(
+        'forbidden characters'
+      );
+    });
+
+    it('should reject path with semicolons', () => {
+      expect(() => CookieOptions.create({ name: 'test', path: '/bad;path' })).toThrow(
+        'forbidden characters'
+      );
+    });
+
+    it('should reject path with control characters', () => {
+      expect(() => CookieOptions.create({ name: 'test', path: '/bad\x00path' })).toThrow(
+        'forbidden characters'
+      );
+    });
+
+    it('should skip domain validation when domain is undefined', () => {
+      const options = CookieOptions.create({ name: 'test' });
+
+      expect(options.domain).toBeUndefined();
+    });
+
+    it('should skip expires processing when expires is undefined', () => {
+      const options = CookieOptions.create({ name: 'test' });
+
+      expect(options.expires).toBeUndefined();
+    });
   });
 });

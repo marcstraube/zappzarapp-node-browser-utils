@@ -117,6 +117,7 @@ All changes require:
 - Dependency vulnerability checks
 - Type checking catches type confusion attacks
 - Test coverage prevents regressions
+- Signed releases: GPG-signed tags and commits
 
 ## Known Limitations
 

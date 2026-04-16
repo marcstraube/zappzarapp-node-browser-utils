@@ -37,17 +37,40 @@ pnpm run quality           # Run all quality checks
 - ESLint with zero warnings (`--max-warnings=0`)
 - 100% test coverage for new code
 - Prettier formatting
+- Minimum 85% mutation score (Stryker, enforced in CI)
 
-## Commit Signing (Optional)
+## Commit Signing
 
-GPG-signed commits are recommended but not required. If you'd like to sign your
-commits:
+**CRITICAL: All commits MUST be GPG-signed.**
+
+This is enforced in CI/CD:
+
+- GitHub Actions will fail on unsigned commits
+- Pull requests with unsigned commits will be rejected
+
+### Setup GPG Signing
 
 ```bash
-# Configure Git to sign commits
+# Generate GPG key
+gpg --full-generate-key
+
+# List keys
+gpg --list-secret-keys --keyid-format=long
+
+# Export public key
+gpg --armor --export YOUR_KEY_ID
+
+# Configure Git
 git config --global user.signingkey YOUR_KEY_ID
 git config --global commit.gpgsign true
+git config --global tag.gpgSign true
 ```
+
+### Add GPG key to GitHub
+
+1. Go to <https://github.com/settings/keys>
+2. Click "New GPG key"
+3. Paste your public key
 
 See
 [GitHub's GPG documentation](https://docs.github.com/en/authentication/managing-commit-signature-verification)
@@ -84,6 +107,7 @@ security: sanitize user input in download filename
 
 ### PR Requirements
 
+- [ ] All commits are GPG-signed
 - [ ] All tests pass (`pnpm run test`)
 - [ ] Code style is clean (`pnpm run lint`)
 - [ ] TypeScript compiles (`pnpm run typecheck`)

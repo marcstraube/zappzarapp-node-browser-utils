@@ -44,6 +44,18 @@ describe('ValidationError', () => {
       expect(error.value).toBe('bad\\nvalue');
     });
 
+    it('should sanitize carriage returns and tabs', () => {
+      const error = ValidationError.containsForbiddenChars('key', 'bad\r\tvalue', 'control chars');
+
+      expect(error.value).toBe('bad\\r\\tvalue');
+    });
+
+    it('should replace non-printable control characters', () => {
+      const error = ValidationError.containsForbiddenChars('key', 'bad\x01\x02value', 'control');
+
+      expect(error.value).toBe('bad??value');
+    });
+
     it('should truncate long values', () => {
       const longValue = 'a'.repeat(100);
       const error = ValidationError.containsForbiddenChars('key', longValue, 'test');
