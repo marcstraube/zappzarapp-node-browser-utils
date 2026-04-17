@@ -267,6 +267,71 @@ describe('StorageConfig', () => {
     });
   });
 
+  describe('create with custom serializer', () => {
+    it('should use JSON.stringify and JSON.parse by default', () => {
+      const config = StorageConfig.create();
+
+      expect(config.serializer).toBe(JSON.stringify);
+      expect(config.deserializer).toBe(JSON.parse);
+    });
+
+    it('should accept custom serializer and deserializer', () => {
+      const serializer = (value: unknown): string => `custom:${JSON.stringify(value)}`;
+      const deserializer = (raw: string): unknown => JSON.parse(raw.replace('custom:', ''));
+      const config = StorageConfig.create({ serializer, deserializer });
+
+      expect(config.serializer).toBe(serializer);
+      expect(config.deserializer).toBe(deserializer);
+    });
+  });
+
+  describe('withSerializer', () => {
+    it('should create new config with custom serializer and deserializer', () => {
+      const original = StorageConfig.create();
+      const serializer = (value: unknown): string => `custom:${JSON.stringify(value)}`;
+      const deserializer = (raw: string): unknown => JSON.parse(raw.replace('custom:', ''));
+      const modified = original.withSerializer(serializer, deserializer);
+
+      expect(modified.serializer).toBe(serializer);
+      expect(modified.deserializer).toBe(deserializer);
+      expect(original.serializer).toBe(JSON.stringify);
+      expect(original.deserializer).toBe(JSON.parse);
+    });
+
+    it('should preserve other settings', () => {
+      const original = StorageConfig.create({
+        prefix: 'myApp',
+        maxEntries: 100,
+        useMemoryFallback: false,
+      });
+      const serializer = JSON.stringify;
+      const deserializer = JSON.parse;
+      const modified = original.withSerializer(serializer, deserializer);
+
+      expect(modified.prefix).toBe('myApp');
+      expect(modified.maxEntries).toBe(100);
+      expect(modified.useMemoryFallback).toBe(false);
+    });
+  });
+
+  describe('fluent methods preserve serializer', () => {
+    it('should preserve custom serializer through fluent chain', () => {
+      const serializer = (value: unknown): string => `custom:${JSON.stringify(value)}`;
+      const deserializer = (raw: string): unknown => JSON.parse(raw.replace('custom:', ''));
+      const config = StorageConfig.create({ serializer, deserializer });
+
+      const chained = config
+        .withPrefix('newApp')
+        .withMaxEntries(200)
+        .withMinSafeEntries(10)
+        .withLogger(Logger.silent())
+        .withMemoryFallback(false);
+
+      expect(chained.serializer).toBe(serializer);
+      expect(chained.deserializer).toBe(deserializer);
+    });
+  });
+
   describe('immutability', () => {
     it('should not modify original config', () => {
       const original = StorageConfig.create({

@@ -57,10 +57,10 @@ export interface BaseStorageStats {
  * Implements common logic for localStorage and sessionStorage wrappers.
  *
  * @remarks
- * Values are serialized via `JSON.stringify` and deserialized via `JSON.parse`.
- * Types without native JSON representation (Date, Map, Set, RegExp, etc.)
- * will lose their type information. Use plain objects and primitives, or
- * convert values before storing and after retrieval.
+ * Values are serialized and deserialized using configurable hooks
+ * (defaults to `JSON.stringify` / `JSON.parse`). To preserve non-JSON-native
+ * types (Date, Map, Set, RegExp, etc.), provide custom `serializer` and
+ * `deserializer` functions via {@link StorageConfig}.
  */
 export abstract class BaseStorageManager<T = unknown> {
   protected readonly config: StorageConfig;
@@ -141,7 +141,7 @@ export abstract class BaseStorageManager<T = unknown> {
     const storage = this.getNativeStorage();
 
     try {
-      const serialized = JSON.stringify(entry);
+      const serialized = this.config.serializer(entry);
       storage.setItem(fullKey, serialized);
       this.enforceLimits();
       this.config.logger.debug('Stored:', key);
@@ -152,7 +152,7 @@ export abstract class BaseStorageManager<T = unknown> {
 
         // Retry once
         try {
-          storage.setItem(fullKey, JSON.stringify(entry));
+          storage.setItem(fullKey, this.config.serializer(entry));
           this.config.logger.debug('Stored after eviction:', key);
         } catch (retryError) {
           throw StorageError.quotaExceeded(key, retryError);
@@ -184,7 +184,7 @@ export abstract class BaseStorageManager<T = unknown> {
     }
 
     try {
-      const parsed: unknown = JSON.parse(raw);
+      const parsed: unknown = this.config.deserializer(raw);
 
       if (!isStorageEntry<T>(parsed)) {
         this.config.logger.error('Invalid storage entry structure:', key);
@@ -221,7 +221,7 @@ export abstract class BaseStorageManager<T = unknown> {
     }
 
     try {
-      const parsed: unknown = JSON.parse(raw);
+      const parsed: unknown = this.config.deserializer(raw);
 
       if (!isStorageEntry<T>(parsed)) {
         return Result.err(StorageError.corrupted(key, 'invalid storage entry structure'));
@@ -303,7 +303,7 @@ export abstract class BaseStorageManager<T = unknown> {
       try {
         const raw = storage.getItem(this.getFullKey(key));
         if (raw !== null) {
-          const parsed: unknown = JSON.parse(raw);
+          const parsed: unknown = this.config.deserializer(raw);
 
           if (!isStorageEntry<T>(parsed)) {
             // Skip entries with invalid structure

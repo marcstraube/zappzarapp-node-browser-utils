@@ -259,14 +259,76 @@ describe('BaseStorageManager', () => {
       const origSetItem = mockStorage.setItem.bind(mockStorage);
       mockStorage.setItem = (key: string, value: string) => {
         if (key === 'test.big' && callCount++ === 0) {
-          const err = new DOMException('', 'QuotaExceededError');
-          throw err;
+          throw new DOMException('', 'QuotaExceededError');
         }
         origSetItem(key, value);
       };
 
       manager.set('big', 'large-data');
       expect(manager.get('big')).toBe('large-data');
+    });
+  });
+
+  describe('custom serializer', () => {
+    it('should use custom serializer for set and deserializer for get', () => {
+      const serializer = vi.fn((value: unknown): string => `custom:${JSON.stringify(value)}`);
+      const deserializer = vi.fn((raw: string): unknown => JSON.parse(raw.replace('custom:', '')));
+      const config = StorageConfig.create({ prefix: 'test', serializer, deserializer });
+      const manager = StorageManager.create(config);
+
+      manager.set('key', 'value');
+      expect(serializer).toHaveBeenCalled();
+
+      const result = manager.get('key');
+      expect(deserializer).toHaveBeenCalled();
+      expect(result).toBe('value');
+    });
+
+    it('should use custom serializer for entries()', () => {
+      const serializer = (value: unknown): string => `custom:${JSON.stringify(value)}`;
+      const deserializer = (raw: string): unknown => JSON.parse(raw.replace('custom:', ''));
+      const config = StorageConfig.create({ prefix: 'test', serializer, deserializer });
+      const manager = StorageManager.create(config);
+
+      manager.set('key', 'value');
+      const entries = manager.entries();
+      expect(entries).toHaveLength(1);
+      expect(entries[0]!.value).toBe('value');
+    });
+
+    it('should use custom serializer with getResult()', () => {
+      const serializer = (value: unknown): string => `custom:${JSON.stringify(value)}`;
+      const deserializer = (raw: string): unknown => JSON.parse(raw.replace('custom:', ''));
+      const config = StorageConfig.create({ prefix: 'test', serializer, deserializer });
+      const manager = StorageManager.create(config);
+
+      manager.set('key', 'value');
+      const result = manager.getResult('key');
+      expect(Result.isOk(result)).toBe(true);
+      if (Result.isOk(result)) {
+        expect(result.value).toBe('value');
+      }
+    });
+
+    it('should preserve Date objects with custom serializer using reviver', () => {
+      // JSON.stringify calls Date.toJSON() before the replacer sees the value,
+      // so a reviver-based approach is needed to restore Date instances.
+      const ISO_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
+      const serializer = JSON.stringify;
+      const deserializer = (raw: string): unknown =>
+        JSON.parse(raw, (_key, val: unknown) =>
+          typeof val === 'string' && ISO_REGEX.test(val) ? new Date(val) : val
+        );
+      const config = StorageConfig.create({ prefix: 'test', serializer, deserializer });
+      const manager = StorageManager.create<{ createdAt: Date }>(config);
+
+      const date = new Date('2024-06-15T12:00:00Z');
+      manager.set('item', { createdAt: date });
+
+      const retrieved = manager.get('item');
+      expect(retrieved).not.toBeNull();
+      expect(retrieved!.createdAt).toBeInstanceOf(Date);
+      expect(retrieved!.createdAt.toISOString()).toBe('2024-06-15T12:00:00.000Z');
     });
   });
 
@@ -279,8 +341,7 @@ describe('BaseStorageManager', () => {
       const origSetItem = mockStorage.setItem.bind(mockStorage);
       mockStorage.setItem = (key: string, value: string) => {
         if (key === 'test.item' && callCount++ === 0) {
-          const err = new DOMException('', 'QuotaExceededError');
-          throw err;
+          throw new DOMException('', 'QuotaExceededError');
         }
         origSetItem(key, value);
       };
