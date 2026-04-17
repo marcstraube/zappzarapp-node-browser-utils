@@ -134,7 +134,7 @@ Module boundaries are enforced via `eslint-plugin-boundaries`:
 | Functions  | 99%+       |
 | Lines      | 99%+       |
 
-## Current Modules (36)
+## Current Modules (35)
 
 | Module       | Path                | Purpose                                                           |
 | ------------ | ------------------- | ----------------------------------------------------------------- |

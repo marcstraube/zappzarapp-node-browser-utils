@@ -16,7 +16,7 @@ tree-shakeable, and fully tested.
 - **Secure by default** — cryptographic randomness, input validation, XSS
   prevention
 - **Dual error handling** — throwing and Result-based APIs
-- **Quality-backed** — 3950+ tests, strict ESLint, full coverage
+- **Quality-backed** — 4150+ tests, strict ESLint, full coverage
 
 ## Modules
 

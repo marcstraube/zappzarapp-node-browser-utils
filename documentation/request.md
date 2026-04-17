@@ -36,6 +36,9 @@ api.destroy();
 | Request Timing        | Track request duration and performance          |
 | URL Validation        | Protocol allowlist and pattern blocking         |
 | Credential Protection | Prevent credential leakage to different origins |
+| Content-Type Check    | Validate response MIME type against expected    |
+| SSRF Protection       | Block requests to private/internal IP addresses |
+| Abort Signal Merge    | Combine multiple AbortSignals into one          |
 
 ## Types
 
@@ -52,6 +55,7 @@ api.destroy();
 | `HttpMethod`                 | HTTP method type                                  |
 | `RequestError`               | Request-specific error class                      |
 | `RequestErrorCode`           | Error code enum                                   |
+| `combineAbortSignals`        | Utility to merge two AbortSignals into one        |
 
 ## Configuration Options
 
@@ -65,6 +69,8 @@ api.destroy();
 | `allowedProtocols`         | `string[]`              | `['https:']` | Allowed URL protocols                    |
 | `blockedPatterns`          | `RegExp[]`              | `[]`         | URL patterns to block                    |
 | `validateCredentialOrigin` | `boolean`               | `true`       | Prevent credentials to different origins |
+| `blockPrivateIPs`          | `boolean`               | `false`      | Block requests to private/internal IPs   |
+| `expectedContentType`      | `string \| string[]`    | `undefined`  | Validate response Content-Type           |
 
 ## API Reference
 
@@ -372,21 +378,69 @@ api.use({
 });
 ```
 
+## Content-Type Validation
+
+Validate that responses have the expected MIME type. Fails closed — a missing
+`Content-Type` header with `expectedContentType` set will throw. Comparison is
+case-insensitive; parameters like `charset` are ignored.
+
+```typescript
+// Single MIME type — applied to all requests
+const api = RequestInterceptor.create({
+  baseUrl: 'https://api.example.com',
+  expectedContentType: 'application/json',
+});
+
+// Multiple accepted types
+const api2 = RequestInterceptor.create({
+  baseUrl: 'https://api.example.com',
+  expectedContentType: ['application/json', 'application/ld+json'],
+});
+
+// Override per-request
+const response = await api.fetch('/report.csv', {
+  expectedContentType: 'text/csv',
+});
+```
+
+## Combining Abort Signals
+
+Merge two `AbortSignal` instances into one. When either signal fires, the
+combined signal aborts and listeners on the other signal are cleaned up to
+prevent memory leaks.
+
+```typescript
+import { combineAbortSignals } from '@zappzarapp/browser-utils/request';
+
+const userController = new AbortController();
+const timeoutController = new AbortController();
+
+const combined = combineAbortSignals(
+  userController.signal,
+  timeoutController.signal
+);
+
+// Either signal aborting cancels the request
+const response = await api.fetch('/data', { signal: combined });
+```
+
 ## Error Handling
 
 ### Error Codes
 
-| Code                  | Description                                   |
-| --------------------- | --------------------------------------------- |
-| `FETCH_NOT_SUPPORTED` | Fetch API not available                       |
-| `INVALID_URL`         | URL validation failed                         |
-| `INVALID_CONFIG`      | Invalid configuration                         |
-| `REQUEST_FAILED`      | Network or fetch error                        |
-| `RESPONSE_ERROR`      | Non-2xx response (when `throwOnError: true`)  |
-| `MIDDLEWARE_ERROR`    | Error in middleware                           |
-| `TIMEOUT`             | Request timed out                             |
-| `ABORTED`             | Request was aborted                           |
-| `CREDENTIAL_LEAK`     | Attempted credential leak to different origin |
+| Code                    | Description                                   |
+| ----------------------- | --------------------------------------------- |
+| `FETCH_NOT_SUPPORTED`   | Fetch API not available                       |
+| `INVALID_URL`           | URL validation failed                         |
+| `INVALID_CONFIG`        | Invalid configuration                         |
+| `REQUEST_FAILED`        | Network or fetch error                        |
+| `RESPONSE_ERROR`        | Non-2xx response (when `throwOnError: true`)  |
+| `MIDDLEWARE_ERROR`      | Error in middleware                           |
+| `TIMEOUT`               | Request timed out                             |
+| `ABORTED`               | Request was aborted                           |
+| `CREDENTIAL_LEAK`       | Attempted credential leak to different origin |
+| `SSRF_BLOCKED`          | Request to private/internal IP blocked        |
+| `CONTENT_TYPE_MISMATCH` | Response Content-Type does not match expected |
 
 ### Error Handling Example
 
@@ -403,6 +457,12 @@ try {
         break;
       case 'CREDENTIAL_LEAK':
         console.error('Security: credential leak prevented');
+        break;
+      case 'CONTENT_TYPE_MISMATCH':
+        console.error('Unexpected response type:', error.message);
+        break;
+      case 'SSRF_BLOCKED':
+        console.error('Security: private IP blocked');
         break;
       case 'INVALID_URL':
         console.error('Invalid URL:', error.message);
@@ -437,6 +497,13 @@ try {
 
 5. **No JavaScript/Data URLs** - The interceptor blocks `javascript:` and
    `data:` URLs as a defense-in-depth measure.
+
+6. **SSRF Protection** - Optionally block requests to private/internal IP
+   addresses (`blockPrivateIPs: true`). Covers IPv4 private ranges (10.x,
+   172.16-31.x, 192.168.x), loopback (127.x, ::1), and link-local.
+
+7. **Content-Type Validation** - Validate response MIME types to prevent
+   type-confusion attacks. Fails closed (missing header throws).
 
 ## Usage with Abort Controller
 
