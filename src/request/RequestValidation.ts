@@ -249,7 +249,9 @@ export function validateContentType(
   const rawContentType = responseHeaders.get('content-type');
   const actualBase = parseBaseContentType(rawContentType);
 
-  const expected = Array.isArray(expectedContentType) ? expectedContentType : [expectedContentType];
+  const expected: readonly string[] = Array.isArray(expectedContentType)
+    ? expectedContentType
+    : [expectedContentType];
 
   const normalizedExpected = expected.map((t) => t.toLowerCase().trim());
 
