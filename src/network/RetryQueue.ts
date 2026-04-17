@@ -55,6 +55,18 @@ import { NetworkStatus } from './NetworkStatus.js';
 
 export type BackoffStrategy = 'linear' | 'exponential' | 'constant';
 
+export type CircuitState = 'closed' | 'open' | 'half-open';
+
+export interface CircuitBreakerOptions {
+  /** Number of consecutive failures before opening the circuit. */
+  readonly threshold: number;
+  /**
+   * Time in ms before transitioning from open to half-open.
+   * @default 30000
+   */
+  readonly cooldownMs?: number;
+}
+
 export interface RetryQueueOptions {
   /**
    * Maximum retry attempts.
@@ -93,6 +105,12 @@ export interface RetryQueueOptions {
   readonly jitter?: boolean;
 
   /**
+   * Circuit breaker configuration (optional, disabled by default).
+   * Opens the circuit after consecutive failures to prevent cascading failures.
+   */
+  readonly circuitBreaker?: CircuitBreakerOptions;
+
+  /**
    * Rate limiting configuration (optional, disabled by default).
    * Limits how many operations can be processed within a time window
    * to prevent reconnect storms.
@@ -115,6 +133,7 @@ export interface RetryStats {
   readonly failed: number;
   readonly retries: number;
   readonly paused: boolean;
+  readonly circuitState: CircuitState;
 }
 
 interface QueuedOperation<T> {
@@ -125,11 +144,12 @@ interface QueuedOperation<T> {
 }
 
 export class RetryQueue {
-  private readonly options: Required<Omit<RetryQueueOptions, 'rateLimit'>> & {
+  private readonly options: Required<Omit<RetryQueueOptions, 'rateLimit' | 'circuitBreaker'>> & {
     readonly rateLimit?: {
       readonly maxRequestsPerWindow: number;
       readonly windowMs: number;
     };
+    readonly circuitBreaker?: CircuitBreakerOptions;
   };
   private readonly queue: Array<QueuedOperation<unknown>> = [];
   private processing = false;
@@ -138,6 +158,10 @@ export class RetryQueue {
   private retryHandlers: Array<(attempt: number, error: unknown) => void> = [];
   private networkCleanup: CleanupFn | null = null;
   private readonly operationTimestamps: number[] = [];
+  private circuitState: CircuitState = 'closed';
+  private consecutiveFailures = 0;
+  private circuitCooldownTimer: ReturnType<typeof setTimeout> | null = null;
+  private circuitStateHandlers: Array<(state: CircuitState) => void> = [];
 
   private constructor(options: RetryQueueOptions = {}) {
     this.options = {
@@ -147,6 +171,7 @@ export class RetryQueue {
       maxDelay: options.maxDelay ?? 30000,
       networkAware: options.networkAware ?? true,
       jitter: options.jitter ?? true,
+      circuitBreaker: options.circuitBreaker,
       rateLimit: options.rateLimit,
     };
 
@@ -155,6 +180,23 @@ export class RetryQueue {
     }
     if (this.options.maxDelay <= 0) {
       throw new NetworkError('NETWORK_INVALID_OPTIONS', 'maxDelay must be positive');
+    }
+    if (this.options.circuitBreaker) {
+      if (this.options.circuitBreaker.threshold <= 0) {
+        throw new NetworkError(
+          'NETWORK_INVALID_OPTIONS',
+          'circuitBreaker threshold must be positive'
+        );
+      }
+      if (
+        this.options.circuitBreaker.cooldownMs !== undefined &&
+        this.options.circuitBreaker.cooldownMs <= 0
+      ) {
+        throw new NetworkError(
+          'NETWORK_INVALID_OPTIONS',
+          'circuitBreaker cooldownMs must be positive'
+        );
+      }
     }
 
     if (this.options.networkAware) {
@@ -227,6 +269,10 @@ export class RetryQueue {
   destroy(): void {
     this.clear();
     this.retryHandlers = [];
+    this.circuitStateHandlers = [];
+    this.clearCooldownTimer();
+    this.consecutiveFailures = 0;
+    this.circuitState = 'closed';
 
     if (this.networkCleanup !== null) {
       this.networkCleanup();
@@ -253,6 +299,37 @@ export class RetryQueue {
     };
   }
 
+  /**
+   * Listen for circuit breaker state changes.
+   * @returns Cleanup function
+   */
+  onCircuitStateChange(handler: (state: CircuitState) => void): CleanupFn {
+    this.circuitStateHandlers.push(handler);
+
+    return () => {
+      const index = this.circuitStateHandlers.indexOf(handler);
+      if (index !== -1) {
+        this.circuitStateHandlers.splice(index, 1);
+      }
+    };
+  }
+
+  /**
+   * Reset the circuit breaker to closed state.
+   */
+  resetCircuit(): void {
+    this.clearCooldownTimer();
+    this.consecutiveFailures = 0;
+    this.setCircuitState('closed');
+  }
+
+  /**
+   * Get the current circuit breaker state.
+   */
+  getCircuitState(): CircuitState {
+    return this.circuitState;
+  }
+
   // =========================================================================
   // Statistics
   // =========================================================================
@@ -267,6 +344,7 @@ export class RetryQueue {
       failed: this.stats.failed,
       retries: this.stats.retries,
       paused: this.paused,
+      circuitState: this.circuitState,
     };
   }
 
@@ -307,6 +385,14 @@ export class RetryQueue {
         break;
       }
 
+      // Circuit breaker: fast-fail if open
+      if (this.options.circuitBreaker && this.circuitState === 'open') {
+        const item = this.queue.shift()!;
+        this.stats.failed++;
+        item.reject(NetworkError.circuitOpen());
+        continue;
+      }
+
       // Check and wait for rate limit if needed
       const shouldContinue = await this.waitForRateLimit();
       if (shouldContinue) {
@@ -343,12 +429,20 @@ export class RetryQueue {
       this.stats.succeeded++;
       item.resolve(result);
 
+      if (this.options.circuitBreaker) {
+        this.onOperationSuccess();
+      }
+
       // Record operation timestamp for rate limiting
       if (this.options.rateLimit) {
         this.recordOperation();
       }
     } catch (error) {
       item.attempts++;
+
+      if (this.options.circuitBreaker) {
+        this.onOperationFailure();
+      }
 
       if (item.attempts <= this.options.maxRetries) {
         // Retry
@@ -363,6 +457,59 @@ export class RetryQueue {
         this.stats.failed++;
         item.reject(NetworkError.maxRetries(item.attempts, error));
       }
+    }
+  }
+
+  private onOperationSuccess(): void {
+    this.consecutiveFailures = 0;
+    if (this.circuitState === 'half-open') {
+      this.setCircuitState('closed');
+    }
+  }
+
+  private onOperationFailure(): void {
+    this.consecutiveFailures++;
+
+    if (this.circuitState === 'half-open') {
+      this.setCircuitState('open');
+      this.startCooldownTimer();
+      return;
+    }
+
+    const threshold = this.options.circuitBreaker!.threshold;
+    if (this.consecutiveFailures >= threshold && this.circuitState === 'closed') {
+      this.setCircuitState('open');
+      this.startCooldownTimer();
+    }
+  }
+
+  private setCircuitState(newState: CircuitState): void {
+    if (this.circuitState === newState) {
+      return;
+    }
+    this.circuitState = newState;
+    for (const handler of this.circuitStateHandlers) {
+      try {
+        handler(newState);
+      } catch {
+        // Ignore handler errors
+      }
+    }
+  }
+
+  private startCooldownTimer(): void {
+    this.clearCooldownTimer();
+    const cooldownMs = this.options.circuitBreaker!.cooldownMs ?? 30000;
+    this.circuitCooldownTimer = setTimeout(() => {
+      this.setCircuitState('half-open');
+      void this.processQueue();
+    }, cooldownMs);
+  }
+
+  private clearCooldownTimer(): void {
+    if (this.circuitCooldownTimer !== null) {
+      clearTimeout(this.circuitCooldownTimer);
+      this.circuitCooldownTimer = null;
     }
   }
 
