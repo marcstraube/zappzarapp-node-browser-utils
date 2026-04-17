@@ -597,7 +597,7 @@ export const WebSocketManager = {
       sendBinary(data: BinaryData): boolean {
         if (ws?.readyState === WebSocket.OPEN) {
           try {
-            ws.send(data);
+            ws.send(data as string | ArrayBuffer | Blob);
             return true;
           } catch {
             return false;
