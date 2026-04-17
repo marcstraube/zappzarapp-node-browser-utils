@@ -69,6 +69,7 @@ export default [
       'prettier/prettier': 'error',
 
       // Security rules
+      'security/detect-bidi-characters': 'error',
       'security/detect-eval-with-expression': 'error',
       'security/detect-unsafe-regex': 'error',
       'security/detect-non-literal-regexp': 'warn',
