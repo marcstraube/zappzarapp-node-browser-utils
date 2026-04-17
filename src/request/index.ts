@@ -13,4 +13,4 @@ export type {
   RequestInterceptorConfig,
   RequestInterceptorInstance,
 } from './RequestInterceptor.js';
-export { combineAbortSignals } from './RequestValidation.js';
+export { combineAbortSignals, validateContentType } from './RequestValidation.js';

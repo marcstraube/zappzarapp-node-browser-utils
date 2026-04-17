@@ -1170,6 +1170,201 @@ describe('RequestInterceptor', () => {
       });
     });
 
+    describe('Content-Type validation', () => {
+      it('should not validate Content-Type by default', async () => {
+        mockFetch.mockResolvedValueOnce(
+          new Response('hello', {
+            status: 200,
+            statusText: 'OK',
+            headers: { 'Content-Type': 'text/html' },
+          })
+        );
+
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+        });
+
+        const response = await api.fetch('/page');
+        expect(response.status).toBe(200);
+
+        api.destroy();
+      });
+
+      it('should pass when response Content-Type matches expected type', async () => {
+        mockFetch.mockResolvedValueOnce(
+          new Response('{"ok":true}', {
+            status: 200,
+            statusText: 'OK',
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+          expectedContentType: 'application/json',
+        });
+
+        const response = await api.fetch('/data');
+        expect(response.status).toBe(200);
+
+        api.destroy();
+      });
+
+      it('should pass when Content-Type has parameters', async () => {
+        mockFetch.mockResolvedValueOnce(
+          new Response('{"ok":true}', {
+            status: 200,
+            statusText: 'OK',
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          })
+        );
+
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+          expectedContentType: 'application/json',
+        });
+
+        const response = await api.fetch('/data');
+        expect(response.status).toBe(200);
+
+        api.destroy();
+      });
+
+      it('should throw CONTENT_TYPE_MISMATCH on mismatch', async () => {
+        mockFetch.mockResolvedValueOnce(
+          new Response('<html></html>', {
+            status: 200,
+            statusText: 'OK',
+            headers: { 'Content-Type': 'text/html' },
+          })
+        );
+
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+          expectedContentType: 'application/json',
+        });
+
+        await expect(api.fetch('/page')).rejects.toThrow('Content-Type mismatch');
+
+        api.destroy();
+      });
+
+      it('should throw when response has no Content-Type (fail closed)', async () => {
+        mockFetch.mockResolvedValueOnce(
+          new Response('data', {
+            status: 200,
+            statusText: 'OK',
+          })
+        );
+
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+          expectedContentType: 'application/json',
+        });
+
+        await expect(api.fetch('/data')).rejects.toThrow('Content-Type mismatch');
+
+        api.destroy();
+      });
+
+      it('should support array of expected types', async () => {
+        mockFetch.mockResolvedValueOnce(
+          new Response('plain text', {
+            status: 200,
+            statusText: 'OK',
+            headers: { 'Content-Type': 'text/plain' },
+          })
+        );
+
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+          expectedContentType: ['application/json', 'text/plain'],
+        });
+
+        const response = await api.fetch('/data');
+        expect(response.status).toBe(200);
+
+        api.destroy();
+      });
+
+      it('should call error middleware on Content-Type mismatch', async () => {
+        mockFetch.mockResolvedValueOnce(
+          new Response('<html></html>', {
+            status: 200,
+            statusText: 'OK',
+            headers: { 'Content-Type': 'text/html' },
+          })
+        );
+
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+          expectedContentType: 'application/json',
+        });
+
+        const onError = vi.fn();
+        api.use({ onError });
+
+        await expect(api.fetch('/page')).rejects.toThrow();
+        expect(onError).toHaveBeenCalled();
+
+        api.destroy();
+      });
+
+      it('should allow per-request override via middleware', async () => {
+        mockFetch.mockResolvedValueOnce(
+          new Response('<html></html>', {
+            status: 200,
+            statusText: 'OK',
+            headers: { 'Content-Type': 'text/html' },
+          })
+        );
+
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+          expectedContentType: 'application/json',
+        });
+
+        api.use({
+          onRequest: (config) => {
+            config.expectedContentType = 'text/html';
+            return config;
+          },
+        });
+
+        const response = await api.fetch('/page');
+        expect(response.status).toBe(200);
+
+        api.destroy();
+      });
+
+      it('should allow middleware to clear expectedContentType', async () => {
+        mockFetch.mockResolvedValueOnce(
+          new Response('<html></html>', {
+            status: 200,
+            statusText: 'OK',
+            headers: { 'Content-Type': 'text/html' },
+          })
+        );
+
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+          expectedContentType: 'application/json',
+        });
+
+        api.use({
+          onRequest: (config) => {
+            config.expectedContentType = undefined;
+            return config;
+          },
+        });
+
+        const response = await api.fetch('/page');
+        expect(response.status).toBe(200);
+
+        api.destroy();
+      });
+    });
+
     describe('getConfig', () => {
       it('should return current configuration', () => {
         const api = RequestInterceptor.create({
