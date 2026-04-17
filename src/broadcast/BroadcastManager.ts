@@ -207,7 +207,7 @@ export const BroadcastManager = {
 
     // Message handler
     channel.onmessage = (event: MessageEvent): void => {
-      const data = event.data;
+      const data: unknown = event.data;
 
       if (!isValidBroadcastMessage(data)) {
         return;

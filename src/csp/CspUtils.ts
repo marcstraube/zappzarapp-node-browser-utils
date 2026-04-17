@@ -179,9 +179,9 @@ export const CspUtils = {
       document.head.removeChild(script);
 
       // Check if the script executed
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic window property access for CSP test
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access -- Dynamic window property access for CSP inline-script test
       const result = (window as any)[testKey] === true;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Cleanup test property
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access -- Cleanup dynamic test property from window
       delete (window as any)[testKey];
 
       cspCache.set('inlineScriptAllowed', result);
@@ -205,6 +205,7 @@ export const CspUtils = {
     try {
       // eslint-disable-next-line @typescript-eslint/no-implied-eval -- Intentionally testing if CSP allows Function constructor
       const fn = new Function('return true');
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- Function constructor returns untyped callable; intentional for CSP eval test
       const result = fn() === true;
       cspCache.set('evalAllowed', result);
       return result;
