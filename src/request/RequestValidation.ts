@@ -219,3 +219,41 @@ export function combineAbortSignals(signal1: AbortSignal, signal2: AbortSignal):
 
   return controller.signal;
 }
+
+/**
+ * Extract base MIME type (type/subtype) from a Content-Type header,
+ * stripping parameters like charset.
+ */
+function parseBaseContentType(contentType: string | null): string | null {
+  if (contentType === null || contentType === '') {
+    return null;
+  }
+  const semicolonIndex = contentType.indexOf(';');
+  const base = semicolonIndex === -1 ? contentType : contentType.substring(0, semicolonIndex);
+  const trimmed = base.trim().toLowerCase();
+  return trimmed === '' ? null : trimmed;
+}
+
+/**
+ * Validate response Content-Type header against expected types.
+ * Fails closed: missing Content-Type with expectedContentType set throws.
+ *
+ * @param responseHeaders - Response headers
+ * @param expectedContentType - Expected MIME type(s)
+ * @throws {RequestError} If Content-Type does not match expected type(s)
+ */
+export function validateContentType(
+  responseHeaders: Headers,
+  expectedContentType: string | readonly string[]
+): void {
+  const rawContentType = responseHeaders.get('content-type');
+  const actualBase = parseBaseContentType(rawContentType);
+
+  const expected = Array.isArray(expectedContentType) ? expectedContentType : [expectedContentType];
+
+  const normalizedExpected = expected.map((t) => t.toLowerCase().trim());
+
+  if (actualBase === null || !normalizedExpected.includes(actualBase)) {
+    throw RequestError.contentTypeMismatch(expectedContentType, rawContentType);
+  }
+}

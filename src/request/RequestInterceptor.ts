@@ -52,7 +52,12 @@ import {
   runErrorMiddleware,
   emitTiming,
 } from './RequestMiddleware.js';
-import { validateUrl, validateCredentialOrigin, combineAbortSignals } from './RequestValidation.js';
+import {
+  validateUrl,
+  validateCredentialOrigin,
+  combineAbortSignals,
+  validateContentType,
+} from './RequestValidation.js';
 
 // =============================================================================
 // Error Types
@@ -71,7 +76,8 @@ export type RequestErrorCode =
   | 'TIMEOUT'
   | 'ABORTED'
   | 'CREDENTIAL_LEAK'
-  | 'SSRF_BLOCKED';
+  | 'SSRF_BLOCKED'
+  | 'CONTENT_TYPE_MISMATCH';
 
 /**
  * Request-specific error.
@@ -132,6 +138,18 @@ export class RequestError extends BrowserUtilsError {
       `Request to private IP address blocked for SSRF protection: ${hostname}`
     );
   }
+
+  static contentTypeMismatch(
+    expected: string | readonly string[],
+    actual: string | null
+  ): RequestError {
+    const expectedStr = Array.isArray(expected) ? expected.join(', ') : String(expected);
+    const actualStr = actual ?? '(none)';
+    return new RequestError(
+      'CONTENT_TYPE_MISMATCH',
+      `Response Content-Type mismatch: expected "${expectedStr}" but received "${actualStr}"`
+    );
+  }
 }
 
 // =============================================================================
@@ -189,6 +207,8 @@ export interface RequestConfig {
   readonly signal?: AbortSignal;
   /** Additional metadata for middleware */
   readonly metadata?: Readonly<Record<string, unknown>>;
+  /** Expected Content-Type for the response (overrides instance default) */
+  readonly expectedContentType?: string | readonly string[];
 }
 
 /**
@@ -209,6 +229,8 @@ export interface MutableRequestConfig {
   signal?: AbortSignal;
   /** Additional metadata for middleware */
   metadata?: Record<string, unknown>;
+  /** Expected Content-Type for the response (overrides instance default) */
+  expectedContentType?: string | readonly string[];
 }
 
 /**
@@ -298,6 +320,18 @@ export interface RequestInterceptorConfig {
    * cannot be detected. This provides defense-in-depth for direct IP access.
    */
   readonly blockPrivateIPs?: boolean;
+  /**
+   * Expected Content-Type for responses (MIME type validation).
+   * Validates that the response Content-Type header matches.
+   * Comparison is case-insensitive on type/subtype; parameters
+   * (e.g., charset) are ignored.
+   *
+   * Can be a single MIME type or an array of accepted types.
+   * Fails closed: missing Content-Type header with this set will throw.
+   *
+   * Default: undefined (no validation).
+   */
+  readonly expectedContentType?: string | readonly string[];
 }
 
 /**
@@ -358,11 +392,12 @@ export interface RequestInterceptorInstance {
 // =============================================================================
 
 const DEFAULT_CONFIG: Required<
-  Omit<RequestInterceptorConfig, 'auth' | 'baseUrl' | 'blockedPatterns'>
+  Omit<RequestInterceptorConfig, 'auth' | 'baseUrl' | 'blockedPatterns' | 'expectedContentType'>
 > & {
   auth: AuthConfig | null;
   baseUrl: string;
   blockedPatterns: readonly RegExp[];
+  expectedContentType: string | readonly string[] | undefined;
 } = {
   baseUrl: '',
   timeout: 30000,
@@ -373,6 +408,7 @@ const DEFAULT_CONFIG: Required<
   blockedPatterns: [],
   validateCredentialOrigin: true,
   blockPrivateIPs: false,
+  expectedContentType: undefined,
 } as const;
 
 /**
@@ -566,6 +602,7 @@ export const RequestInterceptor = {
         timeout: options.timeout,
         signal: init?.signal ?? undefined,
         metadata: {},
+        expectedContentType: options.expectedContentType,
       };
     };
 
@@ -612,6 +649,7 @@ export const RequestInterceptor = {
         timeout: config.timeout,
         signal: config.signal,
         metadata: config.metadata ? Object.freeze({ ...config.metadata }) : undefined,
+        expectedContentType: config.expectedContentType,
       });
     };
 
@@ -666,6 +704,11 @@ export const RequestInterceptor = {
         };
 
         interceptedResponse = await runResponseMiddleware(interceptedResponse, middlewares);
+
+        // Validate Content-Type if expected type is configured
+        if (config.expectedContentType !== undefined) {
+          validateContentType(interceptedResponse.headers, config.expectedContentType);
+        }
 
         emitTiming(
           {
@@ -778,6 +821,7 @@ export const RequestInterceptor = {
           blockedPatterns: Object.freeze([...options.blockedPatterns]),
           validateCredentialOrigin: options.validateCredentialOrigin,
           blockPrivateIPs: options.blockPrivateIPs,
+          expectedContentType: options.expectedContentType,
         });
       },
 
