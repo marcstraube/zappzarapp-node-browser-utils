@@ -23,7 +23,8 @@ export type NetworkErrorCode =
   | 'NETWORK_MAX_RETRIES'
   | 'NETWORK_REQUEST_FAILED'
   | 'NETWORK_ABORTED'
-  | 'NETWORK_INVALID_OPTIONS';
+  | 'NETWORK_INVALID_OPTIONS'
+  | 'NETWORK_CIRCUIT_OPEN';
 
 export class NetworkError extends BrowserUtilsError {
   readonly code: NetworkErrorCode;
@@ -81,5 +82,12 @@ export class NetworkError extends BrowserUtilsError {
    */
   static aborted(): NetworkError {
     return new NetworkError('NETWORK_ABORTED', 'Network request was aborted');
+  }
+
+  /**
+   * Circuit breaker is open.
+   */
+  static circuitOpen(): NetworkError {
+    return new NetworkError('NETWORK_CIRCUIT_OPEN', 'Circuit breaker is open');
   }
 }

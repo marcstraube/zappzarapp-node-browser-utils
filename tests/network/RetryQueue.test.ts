@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { RetryQueue } from '../../src/network/index.js';
+import { RetryQueue, type CircuitState } from '../../src/network/index.js';
 import { NetworkError } from '../../src/core/index.js';
 
 describe('RetryQueue', () => {
@@ -1693,6 +1693,457 @@ describe('RetryQueue', () => {
       // Second item should start after first completes
       expect(startTimes).toHaveLength(2);
       expect(startTimes[1]! - startTimes[0]!).toBeGreaterThanOrEqual(100);
+    });
+  });
+
+  describe('Circuit Breaker', () => {
+    describe('configuration', () => {
+      it('should create queue with circuit breaker enabled', () => {
+        const queue = RetryQueue.create({
+          circuitBreaker: { threshold: 5, cooldownMs: 10000 },
+        });
+        expect(queue.getCircuitState()).toBe('closed');
+        queue.destroy();
+      });
+
+      it('should default circuitState to closed in stats', () => {
+        const queue = RetryQueue.create();
+        expect(queue.getStats().circuitState).toBe('closed');
+        queue.destroy();
+      });
+
+      it('should throw on threshold <= 0', () => {
+        expect(() => RetryQueue.create({ circuitBreaker: { threshold: 0 } })).toThrow(
+          'threshold must be positive'
+        );
+      });
+
+      it('should throw on negative threshold', () => {
+        expect(() => RetryQueue.create({ circuitBreaker: { threshold: -1 } })).toThrow(
+          'threshold must be positive'
+        );
+      });
+
+      it('should throw on cooldownMs <= 0', () => {
+        expect(() =>
+          RetryQueue.create({ circuitBreaker: { threshold: 3, cooldownMs: 0 } })
+        ).toThrow('cooldownMs must be positive');
+      });
+
+      it('should throw on negative cooldownMs', () => {
+        expect(() =>
+          RetryQueue.create({ circuitBreaker: { threshold: 3, cooldownMs: -1 } })
+        ).toThrow('cooldownMs must be positive');
+      });
+    });
+
+    describe('opening', () => {
+      it('should open circuit after threshold consecutive failures', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 3, cooldownMs: 5000 },
+        });
+
+        const promises = Array.from({ length: 3 }, () =>
+          queue
+            .add(async () => {
+              throw new Error('fail');
+            })
+            .catch(() => {})
+        );
+        await Promise.all(promises);
+
+        expect(queue.getCircuitState()).toBe('open');
+        queue.destroy();
+      });
+
+      it('should not open circuit before reaching threshold', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 5, cooldownMs: 5000 },
+        });
+
+        const promises = Array.from({ length: 3 }, () =>
+          queue
+            .add(async () => {
+              throw new Error('fail');
+            })
+            .catch(() => {})
+        );
+        await Promise.all(promises);
+
+        expect(queue.getCircuitState()).toBe('closed');
+        queue.destroy();
+      });
+
+      it('should reset consecutive failure count on success', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 3, cooldownMs: 5000 },
+        });
+
+        // Fail twice
+        const fails1 = Array.from({ length: 2 }, () =>
+          queue
+            .add(async () => {
+              throw new Error('fail');
+            })
+            .catch(() => {})
+        );
+        await Promise.all(fails1);
+
+        // Succeed once (resets counter)
+        await queue.add(async () => 'ok');
+
+        // Fail twice more (consecutive = 2, not 4)
+        const fails2 = Array.from({ length: 2 }, () =>
+          queue
+            .add(async () => {
+              throw new Error('fail');
+            })
+            .catch(() => {})
+        );
+        await Promise.all(fails2);
+
+        expect(queue.getCircuitState()).toBe('closed');
+        queue.destroy();
+      });
+    });
+
+    describe('fast-fail', () => {
+      it('should reject with NETWORK_CIRCUIT_OPEN when circuit is open', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 2, cooldownMs: 30000 },
+        });
+
+        const fails = Array.from({ length: 2 }, () =>
+          queue
+            .add(async () => {
+              throw new Error('fail');
+            })
+            .catch(() => {})
+        );
+        await Promise.all(fails);
+
+        const promise = queue.add(async () => 'should not execute');
+        await expect(promise).rejects.toThrow('Circuit breaker is open');
+
+        queue.destroy();
+      });
+
+      it('should not execute operation when circuit is open', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 2, cooldownMs: 30000 },
+        });
+
+        const fails = Array.from({ length: 2 }, () =>
+          queue
+            .add(async () => {
+              throw new Error('fail');
+            })
+            .catch(() => {})
+        );
+        await Promise.all(fails);
+
+        const operationSpy = vi.fn().mockResolvedValue('result');
+        await queue.add(operationSpy).catch(() => {});
+
+        expect(operationSpy).not.toHaveBeenCalled();
+        queue.destroy();
+      });
+
+      it('should have correct error code', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 1, cooldownMs: 30000 },
+        });
+
+        await queue
+          .add(async () => {
+            throw new Error('fail');
+          })
+          .catch(() => {});
+
+        try {
+          await queue.add(async () => 'nope');
+          expect.fail('Should have thrown');
+        } catch (e) {
+          expect(e).toBeInstanceOf(NetworkError);
+          expect((e as InstanceType<typeof NetworkError>).code).toBe('NETWORK_CIRCUIT_OPEN');
+        }
+
+        queue.destroy();
+      });
+    });
+
+    describe('half-open and recovery', () => {
+      it('should transition to half-open after cooldown', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 1, cooldownMs: 5000 },
+        });
+
+        await queue
+          .add(async () => {
+            throw new Error('fail');
+          })
+          .catch(() => {});
+        expect(queue.getCircuitState()).toBe('open');
+
+        await vi.advanceTimersByTimeAsync(5000);
+        expect(queue.getCircuitState()).toBe('half-open');
+
+        queue.destroy();
+      });
+
+      it('should close circuit on successful probe', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 1, cooldownMs: 5000 },
+        });
+
+        await queue
+          .add(async () => {
+            throw new Error('fail');
+          })
+          .catch(() => {});
+
+        await vi.advanceTimersByTimeAsync(5000);
+
+        const promise = queue.add(async () => 'recovered');
+        await vi.runAllTimersAsync();
+        await expect(promise).resolves.toBe('recovered');
+        expect(queue.getCircuitState()).toBe('closed');
+
+        queue.destroy();
+      });
+
+      it('should reopen circuit on failed probe', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 1, cooldownMs: 5000 },
+        });
+
+        await queue
+          .add(async () => {
+            throw new Error('fail');
+          })
+          .catch(() => {});
+
+        await vi.advanceTimersByTimeAsync(5000);
+
+        await queue
+          .add(async () => {
+            throw new Error('still failing');
+          })
+          .catch(() => {});
+
+        expect(queue.getCircuitState()).toBe('open');
+        queue.destroy();
+      });
+
+      it('should use default cooldownMs of 30000', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 1 },
+        });
+
+        await queue
+          .add(async () => {
+            throw new Error('fail');
+          })
+          .catch(() => {});
+
+        await vi.advanceTimersByTimeAsync(29999);
+        expect(queue.getCircuitState()).toBe('open');
+
+        await vi.advanceTimersByTimeAsync(1);
+        expect(queue.getCircuitState()).toBe('half-open');
+
+        queue.destroy();
+      });
+    });
+
+    describe('state change events', () => {
+      it('should emit full lifecycle state changes', async () => {
+        const states: CircuitState[] = [];
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 1, cooldownMs: 5000 },
+        });
+
+        queue.onCircuitStateChange((s) => states.push(s));
+
+        await queue
+          .add(async () => {
+            throw new Error('fail');
+          })
+          .catch(() => {});
+
+        await vi.advanceTimersByTimeAsync(5000);
+
+        await queue.add(async () => 'ok');
+
+        expect(states).toEqual(['open', 'half-open', 'closed']);
+        queue.destroy();
+      });
+
+      it('should return cleanup function', async () => {
+        const states: CircuitState[] = [];
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 1, cooldownMs: 5000 },
+        });
+
+        const cleanup = queue.onCircuitStateChange((s) => states.push(s));
+        cleanup();
+
+        await queue
+          .add(async () => {
+            throw new Error('fail');
+          })
+          .catch(() => {});
+
+        expect(states).toEqual([]);
+        queue.destroy();
+      });
+
+      it('should ignore errors in state change handlers', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 1, cooldownMs: 5000 },
+        });
+
+        queue.onCircuitStateChange(() => {
+          throw new Error('handler error');
+        });
+
+        await queue
+          .add(async () => {
+            throw new Error('fail');
+          })
+          .catch(() => {});
+
+        expect(queue.getCircuitState()).toBe('open');
+        queue.destroy();
+      });
+    });
+
+    describe('resetCircuit', () => {
+      it('should reset circuit to closed', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 1, cooldownMs: 5000 },
+        });
+
+        await queue
+          .add(async () => {
+            throw new Error('fail');
+          })
+          .catch(() => {});
+
+        queue.resetCircuit();
+        expect(queue.getCircuitState()).toBe('closed');
+        queue.destroy();
+      });
+
+      it('should emit state change when resetting from open', async () => {
+        const states: CircuitState[] = [];
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 1, cooldownMs: 5000 },
+        });
+
+        queue.onCircuitStateChange((s) => states.push(s));
+
+        await queue
+          .add(async () => {
+            throw new Error('fail');
+          })
+          .catch(() => {});
+
+        queue.resetCircuit();
+        expect(states).toEqual(['open', 'closed']);
+        queue.destroy();
+      });
+
+      it('should not emit if already closed', () => {
+        const states: CircuitState[] = [];
+        const queue = RetryQueue.create({
+          circuitBreaker: { threshold: 3 },
+        });
+
+        queue.onCircuitStateChange((s) => states.push(s));
+        queue.resetCircuit();
+
+        expect(states).toEqual([]);
+        queue.destroy();
+      });
+    });
+
+    describe('destroy', () => {
+      it('should clean up cooldown timer on destroy', async () => {
+        const states: CircuitState[] = [];
+        const queue = RetryQueue.create({
+          maxRetries: 0,
+          networkAware: false,
+          circuitBreaker: { threshold: 1, cooldownMs: 5000 },
+        });
+
+        queue.onCircuitStateChange((s) => states.push(s));
+
+        await queue
+          .add(async () => {
+            throw new Error('fail');
+          })
+          .catch(() => {});
+
+        queue.destroy();
+
+        await vi.advanceTimersByTimeAsync(5000);
+        // Only 'open' should be in states, no 'half-open' after destroy
+        expect(states).toEqual(['open']);
+      });
+    });
+
+    describe('backwards compatibility', () => {
+      it('should work without circuit breaker configured', async () => {
+        const queue = RetryQueue.create({
+          maxRetries: 1,
+          networkAware: false,
+        });
+
+        let attempts = 0;
+        const promise = queue.add(async () => {
+          attempts++;
+          if (attempts < 2) {
+            throw new Error('fail');
+          }
+          return 'ok';
+        });
+
+        await vi.runAllTimersAsync();
+        await expect(promise).resolves.toBe('ok');
+        expect(queue.getCircuitState()).toBe('closed');
+        queue.destroy();
+      });
     });
   });
 });
