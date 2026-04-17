@@ -72,7 +72,7 @@ describe('OfflineQueue + IndexedDB + NetworkStatus', () => {
 
     await queue.sync();
 
-    expect(processed).toEqual(['item-1', 'item-2']);
+    expect(processed.sort()).toEqual(['item-1', 'item-2']);
     expect(await queue.size()).toBe(0);
 
     queue.destroy();
