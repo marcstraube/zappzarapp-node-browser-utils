@@ -126,7 +126,7 @@ export class StorageManager<T = unknown> extends BaseStorageManager<T> {
       const parseValue = (raw: string | null): T | null => {
         if (raw === null) return null;
         try {
-          const parsed: unknown = JSON.parse(raw);
+          const parsed: unknown = this.config.deserializer(raw);
           return isStorageEntry<T>(parsed) ? parsed.data : null;
         } catch {
           return null;

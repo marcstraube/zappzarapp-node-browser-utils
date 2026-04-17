@@ -54,6 +54,20 @@ export interface StorageConfigOptions {
    * @default true
    */
   readonly useMemoryFallback?: boolean;
+
+  /**
+   * Custom serializer function to convert values to strings for storage.
+   * Must produce output that the corresponding `deserializer` can parse.
+   * @default JSON.stringify
+   */
+  readonly serializer?: (value: unknown) => string;
+
+  /**
+   * Custom deserializer function to parse stored strings back to values.
+   * Must handle output produced by the corresponding `serializer`.
+   * @default JSON.parse
+   */
+  readonly deserializer?: (raw: string) => unknown;
 }
 
 export class StorageConfig {
@@ -62,19 +76,25 @@ export class StorageConfig {
   readonly minSafeEntries: number;
   readonly logger: LoggerLike;
   readonly useMemoryFallback: boolean;
+  readonly serializer: (value: unknown) => string;
+  readonly deserializer: (raw: string) => unknown;
 
   private constructor(
     prefix: string,
     maxEntries: number,
     minSafeEntries: number,
     logger: LoggerLike,
-    useMemoryFallback: boolean
+    useMemoryFallback: boolean,
+    serializer: (value: unknown) => string,
+    deserializer: (raw: string) => unknown
   ) {
     this.prefix = prefix;
     this.maxEntries = maxEntries;
     this.minSafeEntries = minSafeEntries;
     this.logger = logger;
     this.useMemoryFallback = useMemoryFallback;
+    this.serializer = serializer;
+    this.deserializer = deserializer;
   }
 
   // =========================================================================
@@ -99,7 +119,18 @@ export class StorageConfig {
 
     const useMemoryFallback = options.useMemoryFallback ?? true;
 
-    return new StorageConfig(prefix, maxEntries, minSafeEntries, logger, useMemoryFallback);
+    const serializer = options.serializer ?? JSON.stringify;
+    const deserializer = options.deserializer ?? JSON.parse;
+
+    return new StorageConfig(
+      prefix,
+      maxEntries,
+      minSafeEntries,
+      logger,
+      useMemoryFallback,
+      serializer,
+      deserializer
+    );
   }
 
   /**
@@ -141,7 +172,9 @@ export class StorageConfig {
       this.maxEntries,
       this.minSafeEntries,
       this.logger,
-      this.useMemoryFallback
+      this.useMemoryFallback,
+      this.serializer,
+      this.deserializer
     );
   }
 
@@ -155,7 +188,9 @@ export class StorageConfig {
       maxEntries,
       Math.min(this.minSafeEntries, maxEntries),
       this.logger,
-      this.useMemoryFallback
+      this.useMemoryFallback,
+      this.serializer,
+      this.deserializer
     );
   }
 
@@ -169,7 +204,9 @@ export class StorageConfig {
       this.maxEntries,
       minSafeEntries,
       this.logger,
-      this.useMemoryFallback
+      this.useMemoryFallback,
+      this.serializer,
+      this.deserializer
     );
   }
 
@@ -182,7 +219,9 @@ export class StorageConfig {
       this.maxEntries,
       this.minSafeEntries,
       logger,
-      this.useMemoryFallback
+      this.useMemoryFallback,
+      this.serializer,
+      this.deserializer
     );
   }
 
@@ -195,7 +234,28 @@ export class StorageConfig {
       this.maxEntries,
       this.minSafeEntries,
       this.logger,
-      enabled
+      enabled,
+      this.serializer,
+      this.deserializer
+    );
+  }
+
+  /**
+   * Create new config with custom serializer and deserializer.
+   * Both must be provided together to ensure roundtrip compatibility.
+   */
+  withSerializer(
+    serializer: (value: unknown) => string,
+    deserializer: (raw: string) => unknown
+  ): StorageConfig {
+    return new StorageConfig(
+      this.prefix,
+      this.maxEntries,
+      this.minSafeEntries,
+      this.logger,
+      this.useMemoryFallback,
+      serializer,
+      deserializer
     );
   }
 }
