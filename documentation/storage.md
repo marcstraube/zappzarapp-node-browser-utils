@@ -30,13 +30,15 @@ const prefs = storage.get('prefs');
 
 ## Configuration Options
 
-| Option              | Type                            | Default     | Description                                       |
-| ------------------- | ------------------------------- | ----------- | ------------------------------------------------- |
-| `prefix`            | `string`                        | `'storage'` | Key prefix for all entries (alphanumeric)         |
-| `maxEntries`        | `number`                        | `50`        | Maximum entries before LRU eviction (1-10000)     |
-| `minSafeEntries`    | `number`                        | `5`         | Minimum entries to keep during emergency eviction |
-| `logger`            | `Logger \| LoggerConfigOptions` | Silent      | Logger for debug output                           |
-| `useMemoryFallback` | `boolean`                       | `true`      | Use memory storage when localStorage unavailable  |
+| Option              | Type                            | Default          | Description                                       |
+| ------------------- | ------------------------------- | ---------------- | ------------------------------------------------- |
+| `prefix`            | `string`                        | `'storage'`      | Key prefix for all entries (alphanumeric)         |
+| `maxEntries`        | `number`                        | `50`             | Maximum entries before LRU eviction (1-10000)     |
+| `minSafeEntries`    | `number`                        | `5`              | Minimum entries to keep during emergency eviction |
+| `logger`            | `Logger \| LoggerConfigOptions` | Silent           | Logger for debug output                           |
+| `useMemoryFallback` | `boolean`                       | `true`           | Use memory storage when localStorage unavailable  |
+| `serializer`        | `(value: unknown) => string`    | `JSON.stringify` | Custom function to serialize values               |
+| `deserializer`      | `(raw: string) => unknown`      | `JSON.parse`     | Custom function to deserialize values             |
 
 ## Factory Methods
 
@@ -144,6 +146,30 @@ const storage = StorageManager.fromConfig<MyData>(config);
 const entries = storage.entries();
 // Array<{ key: string; value: T; timestamp: number }>
 ```
+
+## Custom Serialization
+
+By default values are serialized with `JSON.stringify` / `JSON.parse`. To
+preserve non-JSON-native types (Date, Map, Set, RegExp, etc.) provide custom
+`serializer` and `deserializer` functions.
+
+```typescript
+const config = StorageConfig.create({
+  prefix: 'app',
+  serializer: (value) =>
+    JSON.stringify(value, (_key, v) =>
+      v instanceof Date ? { __date: v.toISOString() } : v
+    ),
+  deserializer: (raw) =>
+    JSON.parse(raw, (_key, v) => (v?.__date ? new Date(v.__date) : v)),
+});
+
+const storage = StorageManager.fromConfig<MyData>(config);
+```
+
+The `serializer` receives the full `StorageEntry<T>` object (with `data` and
+`timestamp`). The `deserializer` must return a value that matches the
+`StorageEntry<T>` shape.
 
 ## Cross-Tab Synchronization
 

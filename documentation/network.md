@@ -102,6 +102,7 @@ const queue = RetryQueue.create({
 | `maxDelay`     | `number`          | `30000`         | Maximum delay cap          |
 | `networkAware` | `boolean`         | `true`          | Auto-pause when offline    |
 | `jitter`       | `boolean`         | `true`          | Add randomness to delays   |
+| `rateLimit`    | `RateLimitConfig` | `undefined`     | Rate limiting (see below)  |
 
 ### Backoff Strategies
 
@@ -110,6 +111,32 @@ const queue = RetryQueue.create({
 | `constant`    | Same delay every retry             |
 | `linear`      | Delay = baseDelay \* attempt       |
 | `exponential` | Delay = baseDelay \* 2^(attempt-1) |
+
+### Rate Limiting
+
+Prevents reconnect storms by limiting how many operations are processed within a
+sliding time window.
+
+| Option                 | Type     | Description                                   |
+| ---------------------- | -------- | --------------------------------------------- |
+| `maxRequestsPerWindow` | `number` | Maximum operations allowed in the time window |
+| `windowMs`             | `number` | Time window in milliseconds                   |
+
+```typescript
+const queue = RetryQueue.create({
+  maxRetries: 3,
+  backoff: 'exponential',
+  rateLimit: {
+    maxRequestsPerWindow: 10,
+    windowMs: 5000,
+  },
+});
+
+// Operations are automatically throttled to stay within the rate limit
+for (let i = 0; i < 100; i++) {
+  queue.add(async () => fetch(`/api/data/${i}`));
+}
+```
 
 ## Usage Examples
 
