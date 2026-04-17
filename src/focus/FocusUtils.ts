@@ -145,7 +145,7 @@ export const FocusUtils = {
     }
 
     // Check hidden attribute
-    if (element.hidden) {
+    if (element.hidden === true) {
       return false;
     }
 
