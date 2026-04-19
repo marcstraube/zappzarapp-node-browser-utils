@@ -143,6 +143,8 @@ export interface CacheGetOptions<T> {
   readonly revalidate?: () => Promise<T>;
   /** Options to use when storing revalidated data */
   readonly revalidateOptions?: CacheSetOptions;
+  /** Callback invoked with fresh data when background revalidation completes */
+  readonly onRevalidate?: (value: T) => void;
 }
 
 /**
@@ -464,6 +466,7 @@ export const CacheManager = {
               .then((freshValue) => {
                 if (!destroyed) {
                   instance.setSync(key, freshValue, options.revalidateOptions);
+                  options.onRevalidate?.(freshValue);
                 }
               })
               .catch(() => {

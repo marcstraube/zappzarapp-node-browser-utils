@@ -518,6 +518,128 @@ describe('CacheManager', () => {
       // Revalidation should have been called but not stored
       expect(revalidateFn).toHaveBeenCalled();
     });
+
+    it('should call onRevalidate with fresh value after background revalidation', async () => {
+      const onRevalidate = vi.fn();
+      const revalidateFn = vi.fn().mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        return 'fresh-value';
+      });
+
+      cache.setSync('key1', 'stale-value', { staleAfter: 1000, ttl: 10000 });
+
+      vi.advanceTimersByTime(1001);
+
+      const result = await cache.get('key1', {
+        staleWhileRevalidate: true,
+        revalidate: revalidateFn,
+        onRevalidate,
+      });
+
+      expect(result?.value).toBe('stale-value');
+      expect(onRevalidate).not.toHaveBeenCalled();
+
+      await vi.runAllTimersAsync();
+
+      expect(onRevalidate).toHaveBeenCalledTimes(1);
+      expect(onRevalidate).toHaveBeenCalledWith('fresh-value');
+    });
+
+    it('should not call onRevalidate on revalidation error', async () => {
+      const onRevalidate = vi.fn();
+      const revalidateFn = vi.fn().mockRejectedValue(new Error('Network error'));
+
+      cache.setSync('key1', 'stale-value', { staleAfter: 1000, ttl: 10000 });
+
+      vi.advanceTimersByTime(1001);
+
+      await cache.get('key1', {
+        staleWhileRevalidate: true,
+        revalidate: revalidateFn,
+        onRevalidate,
+      });
+
+      await vi.runAllTimersAsync();
+
+      expect(onRevalidate).not.toHaveBeenCalled();
+    });
+
+    it('should not call onRevalidate if cache is destroyed before revalidation completes', async () => {
+      const onRevalidate = vi.fn();
+      const revalidateFn = vi.fn().mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        return 'fresh-value';
+      });
+
+      cache.setSync('key1', 'stale-value', { staleAfter: 1000, ttl: 10000 });
+
+      vi.advanceTimersByTime(1001);
+
+      const resultPromise = cache.get('key1', {
+        staleWhileRevalidate: true,
+        revalidate: revalidateFn,
+        onRevalidate,
+      });
+
+      cache.destroy();
+
+      await resultPromise;
+      await vi.runAllTimersAsync();
+
+      expect(onRevalidate).not.toHaveBeenCalled();
+    });
+
+    it('should not call onRevalidate when entry is not stale', async () => {
+      const onRevalidate = vi.fn();
+      const revalidateFn = vi.fn().mockResolvedValue('fresh-value');
+
+      cache.setSync('key1', 'value1', { staleAfter: 5000, ttl: 10000 });
+
+      const result = await cache.get('key1', {
+        staleWhileRevalidate: true,
+        revalidate: revalidateFn,
+        onRevalidate,
+      });
+
+      expect(result?.value).toBe('value1');
+      expect(result?.isStale).toBe(false);
+
+      await vi.runAllTimersAsync();
+
+      expect(revalidateFn).not.toHaveBeenCalled();
+      expect(onRevalidate).not.toHaveBeenCalled();
+    });
+
+    it('should call onRevalidate only once with deduplication', async () => {
+      const onRevalidate = vi.fn();
+      const revalidateFn = vi.fn().mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        return 'fresh-value';
+      });
+
+      cache.setSync('key1', 'stale-value', { staleAfter: 1000, ttl: 10000 });
+
+      vi.advanceTimersByTime(1001);
+
+      // Multiple concurrent gets with onRevalidate
+      await Promise.all([
+        cache.get('key1', {
+          staleWhileRevalidate: true,
+          revalidate: revalidateFn,
+          onRevalidate,
+        }),
+        cache.get('key1', {
+          staleWhileRevalidate: true,
+          revalidate: revalidateFn,
+          onRevalidate,
+        }),
+      ]);
+
+      await vi.runAllTimersAsync();
+
+      expect(revalidateFn).toHaveBeenCalledTimes(1);
+      expect(onRevalidate).toHaveBeenCalledTimes(1);
+    });
   });
 
   // ===========================================================================

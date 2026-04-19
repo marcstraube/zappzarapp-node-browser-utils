@@ -95,6 +95,8 @@ interface CacheGetOptions<T> {
   readonly revalidate?: () => Promise<T>;
   /** Options for storing revalidated data */
   readonly revalidateOptions?: CacheSetOptions;
+  /** Callback invoked with fresh data when background revalidation completes */
+  readonly onRevalidate?: (value: T) => void;
 }
 
 interface CacheGetResult<T> {
@@ -206,6 +208,30 @@ if (result) {
   }
 }
 ```
+
+### Revalidation Notification
+
+Use `onRevalidate` to update your UI when fresh data arrives from a background
+revalidation:
+
+```typescript
+const result = await cache.get('api:users', {
+  staleWhileRevalidate: true,
+  revalidate: () => fetch('/api/users').then((r) => r.json()),
+  onRevalidate: (freshData) => {
+    // Called once background fetch completes successfully
+    renderUsers(freshData);
+    hideRefreshIndicator();
+  },
+});
+```
+
+The callback is **not** called when:
+
+- The entry is not stale (no revalidation needed)
+- The revalidation function throws an error (stale data remains)
+- The cache is destroyed before revalidation completes
+- The revalidation is deduplicated (only the first caller's callback fires)
 
 ### Tag-Based Invalidation
 
