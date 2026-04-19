@@ -6,23 +6,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.0.3...v1.1.0) (2026-04-17)
-
+## [1.2.0](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.1.0...v1.2.0) (2026-04-19)
 
 ### Features
 
-* **network:** add circuit breaker pattern to RetryQueue ([#57](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/57)) ([d0c9204](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/d0c9204c40e51050cc7ed42b4f777b65c45a7944))
-* **request:** add Content-Type response validation ([#56](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/56)) ([e3cd5bb](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/e3cd5bb6a9055f87d6100b63563e2511f2f183ab))
-* **request:** expose combineAbortSignals as public utility ([#54](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/54)) ([0adb3a9](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/0adb3a95170d1b183a71f9359816c6401f8d6a94))
-* **storage:** add custom serializer hook for BaseStorageManager ([#58](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/58)) ([052bf66](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/052bf669c0c264f8d6a2cf01e14760f5769667e8))
-
+- **cache:** add onRevalidate callback for SWR completion notification
+  ([#69](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/69))
+  ([ed24830](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/ed24830f06b09bf2d81a3f37cfeca3da5f3b27fc))
+- **request:** add fetch streaming/progress utilities
+  ([#68](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/68))
+  ([2bd1713](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/2bd17130138ada317d04e0af96470bf42666e7aa))
 
 ### Bug Fixes
 
-* **ci:** exclude CHANGELOG.md from prettier format checks ([#63](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/63)) ([8ea1dae](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/8ea1dae3a6ef45d7f894cfcd0cd9db1f13e53781))
-* **ci:** upgrade npm for OIDC trusted publishing support ([#40](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/40)) ([b84b28a](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/b84b28a429cfc0e3b3626260a611eb88b008fb1d))
-* **ci:** use npm publish for OIDC trusted publishing ([#38](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/38)) ([9f91a5d](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/9f91a5d3d28ef4f58eea34b7cc9e01fd5a6d1eb3))
-* **test:** stabilize flaky OfflineQueue integration test ([#62](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/62)) ([dbce592](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/dbce592ca2cc3bb4bfd32ee5ccc36f7b722ae864))
+- **ci:** trigger npm publish on GitHub Release event
+  ([#65](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/65))
+  ([d3a1e40](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/d3a1e4044ddc8acbd3010aed2a1230077b315015))
+
+## [1.1.0](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.0.3...v1.1.0) (2026-04-17)
+
+### Features
+
+- **network:** add circuit breaker pattern to RetryQueue
+  ([#57](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/57))
+  ([d0c9204](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/d0c9204c40e51050cc7ed42b4f777b65c45a7944))
+- **request:** add Content-Type response validation
+  ([#56](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/56))
+  ([e3cd5bb](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/e3cd5bb6a9055f87d6100b63563e2511f2f183ab))
+- **request:** expose combineAbortSignals as public utility
+  ([#54](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/54))
+  ([0adb3a9](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/0adb3a95170d1b183a71f9359816c6401f8d6a94))
+- **storage:** add custom serializer hook for BaseStorageManager
+  ([#58](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/58))
+  ([052bf66](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/052bf669c0c264f8d6a2cf01e14760f5769667e8))
+
+### Bug Fixes
+
+- **ci:** exclude CHANGELOG.md from prettier format checks
+  ([#63](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/63))
+  ([8ea1dae](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/8ea1dae3a6ef45d7f894cfcd0cd9db1f13e53781))
+- **ci:** upgrade npm for OIDC trusted publishing support
+  ([#40](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/40))
+  ([b84b28a](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/b84b28a429cfc0e3b3626260a611eb88b008fb1d))
+- **ci:** use npm publish for OIDC trusted publishing
+  ([#38](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/38))
+  ([9f91a5d](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/9f91a5d3d28ef4f58eea34b7cc9e01fd5a6d1eb3))
+- **test:** stabilize flaky OfflineQueue integration test
+  ([#62](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/62))
+  ([dbce592](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/dbce592ca2cc3bb4bfd32ee5ccc36f7b722ae864))
 
 ## [1.0.3](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.0.2...v1.0.3) (2026-04-10)
 
