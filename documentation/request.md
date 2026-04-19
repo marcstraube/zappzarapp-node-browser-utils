@@ -39,6 +39,7 @@ api.destroy();
 | Content-Type Check    | Validate response MIME type against expected    |
 | SSRF Protection       | Block requests to private/internal IP addresses |
 | Abort Signal Merge    | Combine multiple AbortSignals into one          |
+| Download Progress     | Track download progress via ReadableStream      |
 
 ## Types
 
@@ -56,6 +57,11 @@ api.destroy();
 | `RequestError`               | Request-specific error class                      |
 | `RequestErrorCode`           | Error code enum                                   |
 | `combineAbortSignals`        | Utility to merge two AbortSignals into one        |
+| `ProgressInfo`               | Progress data: loaded, total, percentage          |
+| `ProgressCallback`           | Progress event callback type                      |
+| `ProgressMiddlewareOptions`  | Options for progress middleware factory           |
+| `trackDownloadProgress`      | Wrap Response body to track download progress     |
+| `createProgressMiddleware`   | Middleware factory for download progress tracking |
 
 ## Configuration Options
 
@@ -424,6 +430,70 @@ const combined = combineAbortSignals(
 const response = await api.fetch('/data', { signal: combined });
 ```
 
+## Download Progress Tracking
+
+Track download progress by wrapping the response body ReadableStream. Progress
+is reported on each chunk with loaded bytes, total (from `Content-Length`), and
+percentage.
+
+### Standalone Usage
+
+```typescript
+import { trackDownloadProgress } from '@zappzarapp/browser-utils/request';
+
+const response = await fetch('https://example.com/large-file.zip');
+const tracked = trackDownloadProgress(response, (progress) => {
+  console.log(`${progress.loaded} / ${progress.total ?? '?'} bytes`);
+  if (progress.percentage !== null) {
+    updateProgressBar(progress.percentage);
+  }
+});
+
+// Progress is reported as the body is consumed
+const blob = await tracked.blob();
+```
+
+### With RequestInterceptor Middleware
+
+```typescript
+import {
+  RequestInterceptor,
+  createProgressMiddleware,
+} from '@zappzarapp/browser-utils/request';
+
+const api = RequestInterceptor.create({
+  baseUrl: 'https://api.example.com',
+});
+
+api.use(
+  createProgressMiddleware({
+    onDownloadProgress: (progress) => {
+      console.log(`Downloaded: ${progress.percentage ?? '?'}%`);
+    },
+  })
+);
+
+const response = await api.get('/files/large.zip');
+const blob = await response.blob();
+```
+
+### ProgressInfo
+
+| Property     | Type             | Description                                      |
+| ------------ | ---------------- | ------------------------------------------------ |
+| `loaded`     | `number`         | Bytes received so far                            |
+| `total`      | `number \| null` | Total bytes from Content-Length, null if unknown |
+| `percentage` | `number \| null` | Download percentage (0-100), null if unknown     |
+
+**Notes:**
+
+- If `Content-Length` is missing, `total` and `percentage` are `null`
+- Percentage is capped at 100 even if actual bytes exceed `Content-Length`
+- A final progress event is emitted when the stream ends
+- For responses with no body (e.g. 204), a single event is emitted with
+  `loaded: 0`
+- Stream cancellation propagates to the original response body
+
 ## Error Handling
 
 ### Error Codes
@@ -534,4 +604,5 @@ try {
 | Fetch API       | 42+    | 39+     | 10.1+  | 14+  |
 | AbortController | 66+    | 57+     | 11.1+  | 16+  |
 | Headers         | 42+    | 39+     | 10.1+  | 14+  |
+| ReadableStream  | 43+    | 65+     | 10.1+  | 14+  |
 | async/await     | 55+    | 52+     | 10.1+  | 14+  |
