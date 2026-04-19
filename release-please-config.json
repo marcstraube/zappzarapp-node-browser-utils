@@ -6,6 +6,13 @@
       "package-name": "@zappzarapp/browser-utils",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "README.md",
+          "regex": "badge\\.socket\\.dev/npm/package/@zappzarapp/browser-utils/(?<version>[\\d\\.]+)"
+        }
+      ],
       "changelog-sections": [
         {
           "type": "feat",
