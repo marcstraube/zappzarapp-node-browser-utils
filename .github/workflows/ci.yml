@@ -10,9 +10,45 @@ permissions:
   contents: read
 
 jobs:
-  quality:
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      source: ${{ steps.filter.outputs.source }}
+      tooling: ${{ steps.filter.outputs.tooling }}
+      deps: ${{ steps.filter.outputs.deps }}
+      release-please: ${{ steps.release.outputs.match }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            source:
+              - 'src/**'
+              - 'tests/**'
+            tooling:
+              - 'eslint.config.js'
+              - 'tsconfig.json'
+              - 'vitest.config.ts'
+              - 'stryker.config.js'
+            deps:
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+
+      - name: Check for release-please branch
+        id: release
+        run: |
+          if [[ "${{ github.head_ref }}" == release-please--* ]]; then
+            echo "match=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "match=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  format:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -34,6 +70,32 @@ jobs:
       - name: Check formatting
         run: pnpm run format:check
 
+  quality:
+    needs: changes
+    if: >-
+      needs.changes.outputs.release-please != 'true' &&
+      (needs.changes.outputs.source == 'true' ||
+       needs.changes.outputs.tooling == 'true' ||
+       needs.changes.outputs.deps == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Run linter
         run: pnpm run lint
 
@@ -52,9 +114,13 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   build:
+    needs: [changes, quality]
+    if: >-
+      needs.changes.outputs.release-please != 'true' &&
+      (needs.changes.outputs.source == 'true' ||
+       needs.changes.outputs.tooling == 'true' ||
+       needs.changes.outputs.deps == 'true')
     runs-on: ubuntu-latest
-    needs: quality
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -87,8 +153,12 @@ jobs:
         run: pnpm run size
 
   security:
+    needs: changes
+    if: >-
+      needs.changes.outputs.release-please != 'true' &&
+      (needs.changes.outputs.source == 'true' ||
+       needs.changes.outputs.deps == 'true')
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -111,9 +181,11 @@ jobs:
         run: pnpm audit --prod --audit-level=moderate
 
   mutation:
+    needs: [changes, quality]
+    if: >-
+      needs.changes.outputs.release-please != 'true' &&
+      needs.changes.outputs.source == 'true'
     runs-on: ubuntu-latest
-    needs: quality
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -143,9 +215,12 @@ jobs:
           path: reports/mutation/
 
   sbom:
+    needs: [changes, quality]
+    if: >-
+      needs.changes.outputs.release-please != 'true' &&
+      (needs.changes.outputs.source == 'true' ||
+       needs.changes.outputs.deps == 'true')
     runs-on: ubuntu-latest
-    needs: quality
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -172,3 +247,30 @@ jobs:
         with:
           name: sbom
           path: sbom.cdx.json
+
+  # =============================================================================
+  # CI GATE (single required check for branch protection)
+  # =============================================================================
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [format, quality, build, security, mutation, sbom]
+    steps:
+      - name: Check required job results
+        run: |
+          results=(
+            "${{ needs.format.result }}"
+            "${{ needs.quality.result }}"
+            "${{ needs.build.result }}"
+            "${{ needs.security.result }}"
+            "${{ needs.mutation.result }}"
+            "${{ needs.sbom.result }}"
+          )
+          for r in "${results[@]}"; do
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              echo "::error::Required job failed or was cancelled: $r"
+              exit 1
+            fi
+          done
+          echo "All required jobs passed (or were skipped)."
