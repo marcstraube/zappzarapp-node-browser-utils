@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.2.0...v1.3.0) (2026-05-01)
+
+
+### Features
+
+* **request:** add upload progress tracking ([#86](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/86)) ([38f2abc](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/38f2abca0a7853001613595b7dbce077f07f129c))
+
+
+### Bug Fixes
+
+* **ci:** exempt release-please bot from GPG signature verification ([#92](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/92)) ([9492ce1](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/9492ce1b5d7d8ab6a252fea2f1af8be1ceb1f447))
+
 ## [1.2.0](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.1.0...v1.2.0) (2026-04-19)
 
 ### Features
