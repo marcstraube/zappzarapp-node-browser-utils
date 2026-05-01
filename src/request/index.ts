@@ -14,7 +14,11 @@ export type {
   RequestInterceptorInstance,
 } from './RequestInterceptor.js';
 export { combineAbortSignals, validateContentType } from './RequestValidation.js';
-export { trackDownloadProgress, createProgressMiddleware } from './StreamProgress.js';
+export {
+  trackDownloadProgress,
+  trackUploadProgress,
+  createProgressMiddleware,
+} from './StreamProgress.js';
 export type {
   ProgressInfo,
   ProgressCallback,

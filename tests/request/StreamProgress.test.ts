@@ -4,9 +4,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   trackDownloadProgress,
+  trackUploadProgress,
   createProgressMiddleware,
   type ProgressInfo,
   type InterceptedResponse,
+  type MutableRequestConfig,
 } from '../../src/request/index.js';
 
 /**
@@ -280,8 +282,228 @@ describe('StreamProgress', () => {
     });
   });
 
+  describe('trackUploadProgress', () => {
+    /**
+     * Consume a ReadableStream and return all collected bytes.
+     */
+    async function consumeStream(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
+      const reader = stream.getReader();
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      const totalLength = chunks.reduce((sum, c) => sum + c.byteLength, 0);
+      const result = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      return result;
+    }
+
+    it('should track progress for Blob body with known size', async () => {
+      const data = new Uint8Array([1, 2, 3, 4, 5]);
+      const blob = new Blob([data]);
+      const events: ProgressInfo[] = [];
+
+      const stream = trackUploadProgress(blob, (progress) => {
+        events.push(progress);
+      });
+
+      await consumeStream(stream);
+
+      expect(events.length).toBeGreaterThan(0);
+      const lastEvent = events[events.length - 1]!;
+      expect(lastEvent.loaded).toBe(5);
+      expect(lastEvent.total).toBe(5);
+      expect(lastEvent.percentage).toBe(100);
+    });
+
+    it('should track progress for string body with known size', async () => {
+      const body = 'Hello, World!';
+      const expectedSize = new TextEncoder().encode(body).byteLength;
+      const events: ProgressInfo[] = [];
+
+      const stream = trackUploadProgress(body, (progress) => {
+        events.push(progress);
+      });
+
+      await consumeStream(stream);
+
+      const lastEvent = events[events.length - 1]!;
+      expect(lastEvent.loaded).toBe(expectedSize);
+      expect(lastEvent.total).toBe(expectedSize);
+      expect(lastEvent.percentage).toBe(100);
+    });
+
+    it('should track progress for ArrayBuffer body with known size', async () => {
+      const buffer = new ArrayBuffer(64);
+      const events: ProgressInfo[] = [];
+
+      const stream = trackUploadProgress(buffer, (progress) => {
+        events.push(progress);
+      });
+
+      await consumeStream(stream);
+
+      const lastEvent = events[events.length - 1]!;
+      expect(lastEvent.loaded).toBe(64);
+      expect(lastEvent.total).toBe(64);
+      expect(lastEvent.percentage).toBe(100);
+    });
+
+    it('should track progress for Uint8Array body with known size', async () => {
+      const data = new Uint8Array(128);
+      const events: ProgressInfo[] = [];
+
+      const stream = trackUploadProgress(data, (progress) => {
+        events.push(progress);
+      });
+
+      await consumeStream(stream);
+
+      const lastEvent = events[events.length - 1]!;
+      expect(lastEvent.loaded).toBe(128);
+      expect(lastEvent.total).toBe(128);
+      expect(lastEvent.percentage).toBe(100);
+    });
+
+    it('should track progress for URLSearchParams with known size', async () => {
+      const params = new URLSearchParams({ key: 'value', foo: 'bar' });
+      const expectedSize = new TextEncoder().encode(params.toString()).byteLength;
+      const events: ProgressInfo[] = [];
+
+      const stream = trackUploadProgress(params, (progress) => {
+        events.push(progress);
+      });
+
+      await consumeStream(stream);
+
+      const lastEvent = events[events.length - 1]!;
+      expect(lastEvent.loaded).toBe(expectedSize);
+      expect(lastEvent.total).toBe(expectedSize);
+      expect(lastEvent.percentage).toBe(100);
+    });
+
+    it('should report null total for ReadableStream body', async () => {
+      const source = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array([1, 2, 3]));
+          controller.close();
+        },
+      });
+      const events: ProgressInfo[] = [];
+
+      const stream = trackUploadProgress(source, (progress) => {
+        events.push(progress);
+      });
+
+      await consumeStream(stream);
+
+      for (const event of events) {
+        expect(event.total).toBeNull();
+        expect(event.percentage).toBeNull();
+      }
+      expect(events[events.length - 1]!.loaded).toBe(3);
+    });
+
+    it('should handle empty Blob body', async () => {
+      const blob = new Blob([]);
+      const events: ProgressInfo[] = [];
+
+      const stream = trackUploadProgress(blob, (progress) => {
+        events.push(progress);
+      });
+
+      await consumeStream(stream);
+
+      expect(events.length).toBeGreaterThan(0);
+      const lastEvent = events[events.length - 1]!;
+      expect(lastEvent.loaded).toBe(0);
+      expect(lastEvent.total).toBe(0);
+      expect(lastEvent.percentage).toBe(100);
+    });
+
+    it('should handle empty string body', async () => {
+      const events: ProgressInfo[] = [];
+
+      const stream = trackUploadProgress('', (progress) => {
+        events.push(progress);
+      });
+
+      await consumeStream(stream);
+
+      const lastEvent = events[events.length - 1]!;
+      expect(lastEvent.loaded).toBe(0);
+      expect(lastEvent.total).toBe(0);
+      expect(lastEvent.percentage).toBe(100);
+    });
+
+    it('should propagate cancellation to the source stream', async () => {
+      const cancelFn = vi.fn();
+      const source = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array(10));
+        },
+        cancel: cancelFn,
+      });
+
+      const stream = trackUploadProgress(source, vi.fn());
+      const reader = stream.getReader();
+
+      await reader.read();
+      await reader.cancel('aborted');
+
+      expect(cancelFn).toHaveBeenCalledWith('aborted');
+    });
+
+    it('should preserve data integrity through the stream', async () => {
+      const original = new TextEncoder().encode('Upload data integrity test');
+      const blob = new Blob([original]);
+
+      const stream = trackUploadProgress(blob, vi.fn());
+      const result = await consumeStream(stream);
+
+      expect(new TextDecoder().decode(result)).toBe('Upload data integrity test');
+    });
+
+    it('should emit final progress event with 100% on stream end', async () => {
+      const data = new Uint8Array(50);
+      const blob = new Blob([data]);
+      const events: ProgressInfo[] = [];
+
+      const stream = trackUploadProgress(blob, (progress) => {
+        events.push(progress);
+      });
+
+      await consumeStream(stream);
+
+      const lastEvent = events[events.length - 1]!;
+      expect(lastEvent.percentage).toBe(100);
+    });
+
+    it('should handle multi-byte UTF-8 strings correctly', async () => {
+      const body = 'Hallo Welt! 🌍';
+      const expectedSize = new TextEncoder().encode(body).byteLength;
+      const events: ProgressInfo[] = [];
+
+      const stream = trackUploadProgress(body, (progress) => {
+        events.push(progress);
+      });
+
+      await consumeStream(stream);
+
+      const lastEvent = events[events.length - 1]!;
+      expect(lastEvent.total).toBe(expectedSize);
+      expect(lastEvent.loaded).toBe(expectedSize);
+    });
+  });
+
   describe('createProgressMiddleware', () => {
-    it('should return a middleware with onResponse handler', () => {
+    it('should return a middleware with only onResponse when download only', () => {
       const middleware = createProgressMiddleware({
         onDownloadProgress: vi.fn(),
       });
@@ -289,6 +511,99 @@ describe('StreamProgress', () => {
       expect(middleware.onResponse).toBeTypeOf('function');
       expect(middleware.onRequest).toBeUndefined();
       expect(middleware.onError).toBeUndefined();
+    });
+
+    it('should return a middleware with only onRequest when upload only', () => {
+      const middleware = createProgressMiddleware({
+        onUploadProgress: vi.fn(),
+      });
+
+      expect(middleware.onRequest).toBeTypeOf('function');
+      expect(middleware.onResponse).toBeUndefined();
+      expect(middleware.onError).toBeUndefined();
+    });
+
+    it('should return a middleware with both handlers when both provided', () => {
+      const middleware = createProgressMiddleware({
+        onDownloadProgress: vi.fn(),
+        onUploadProgress: vi.fn(),
+      });
+
+      expect(middleware.onRequest).toBeTypeOf('function');
+      expect(middleware.onResponse).toBeTypeOf('function');
+      expect(middleware.onError).toBeUndefined();
+    });
+
+    it('should return empty middleware when no options provided', () => {
+      const middleware = createProgressMiddleware({});
+
+      expect(middleware.onRequest).toBeUndefined();
+      expect(middleware.onResponse).toBeUndefined();
+    });
+
+    it('should wrap request body with upload progress tracking', async () => {
+      const events: ProgressInfo[] = [];
+      const middleware = createProgressMiddleware({
+        onUploadProgress: (progress) => events.push(progress),
+      });
+
+      const config: MutableRequestConfig = {
+        url: 'https://example.com/upload',
+        method: 'POST',
+        headers: new Headers(),
+        body: new Blob([new Uint8Array(100)]),
+      };
+
+      const result = middleware.onRequest!(config) as MutableRequestConfig;
+
+      expect(result.body).not.toBe(config.body);
+      expect(result.body).toBeInstanceOf(ReadableStream);
+      expect(result.url).toBe('https://example.com/upload');
+      expect(result.method).toBe('POST');
+
+      // Consume the stream to trigger progress
+      const reader = (result.body as ReadableStream<Uint8Array>).getReader();
+      while (true) {
+        const { done } = await reader.read();
+        if (done) break;
+      }
+
+      expect(events.length).toBeGreaterThan(0);
+      expect(events[events.length - 1]!.percentage).toBe(100);
+    });
+
+    it('should not wrap null body in upload middleware', () => {
+      const middleware = createProgressMiddleware({
+        onUploadProgress: vi.fn(),
+      });
+
+      const config: MutableRequestConfig = {
+        url: 'https://example.com/data',
+        method: 'GET',
+        headers: new Headers(),
+        body: null,
+      };
+
+      const result = middleware.onRequest!(config) as MutableRequestConfig;
+
+      expect(result.body).toBeNull();
+      expect(result).toEqual(config);
+    });
+
+    it('should not wrap undefined body in upload middleware', () => {
+      const middleware = createProgressMiddleware({
+        onUploadProgress: vi.fn(),
+      });
+
+      const config: MutableRequestConfig = {
+        url: 'https://example.com/data',
+        method: 'GET',
+        headers: new Headers(),
+      };
+
+      const result = middleware.onRequest!(config) as MutableRequestConfig;
+
+      expect(result.body).toBeUndefined();
     });
 
     it('should wrap response body with progress tracking', async () => {
