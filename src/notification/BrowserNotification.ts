@@ -115,7 +115,7 @@ export const BrowserNotification = {
     if (BrowserNotification.permission() === 'default') {
       const permResult = await BrowserNotification.requestPermission();
       if (Result.isErr(permResult)) {
-        return permResult as Result<Notification, NotificationError>;
+        return permResult;
       }
       if (permResult.value !== 'granted') {
         return Result.err(NotificationError.permissionDenied());
