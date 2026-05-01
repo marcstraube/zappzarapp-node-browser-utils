@@ -49,13 +49,25 @@ jobs:
           COMMITS=$(git rev-list ${BASE_SHA}..${HEAD_SHA} 2>/dev/null || echo "${HEAD_SHA}")
           UNSIGNED_COMMITS=()
 
+          # GitHub App bot commits on release-please branches cannot be auto-signed
+          # due to a known limitation in code-suggester (googleapis/release-please-action#1124).
+          # The squash-merge commit on master IS signed by GitHub's web-flow key.
+          RELEASE_PLEASE_BOT="marcstraube-release-bot[bot]"
+
           for commit in $COMMITS; do
             # Use GitHub API to check signature verification
-            VERIFIED=$(gh api repos/${{ github.repository }}/commits/${commit} --jq '.commit.verification.verified')
+            COMMIT_DATA=$(gh api repos/${{ github.repository }}/commits/${commit} --jq '{verified: .commit.verification.verified, reason: .commit.verification.reason, author: .commit.author.name}')
+            VERIFIED=$(echo "$COMMIT_DATA" | jq -r '.verified')
+            AUTHOR=$(echo "$COMMIT_DATA" | jq -r '.author')
+            REASON=$(echo "$COMMIT_DATA" | jq -r '.reason')
+
             if [ "$VERIFIED" != "true" ]; then
-              UNSIGNED_COMMITS+=("$commit")
-              REASON=$(gh api repos/${{ github.repository }}/commits/${commit} --jq '.commit.verification.reason')
-              echo "❌ Commit $commit is NOT verified (reason: $REASON)"
+              if [ "$AUTHOR" = "$RELEASE_PLEASE_BOT" ]; then
+                echo "⚠️  Commit $commit by $RELEASE_PLEASE_BOT is unsigned (known limitation, merge commit will be signed)"
+              else
+                UNSIGNED_COMMITS+=("$commit")
+                echo "❌ Commit $commit is NOT verified (reason: $REASON)"
+              fi
             else
               echo "✅ Commit $commit is verified"
             fi
