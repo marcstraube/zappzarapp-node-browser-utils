@@ -43,6 +43,15 @@ security-first design.
 | [websocket](websocket.md)       | WebSocket wrapper with auto-reconnection                  |
 | [a11y](a11y.md)                 | Accessibility utilities (ARIA, announcements, skip links) |
 
+## Recipes
+
+| Recipe                                                  | Modules                                              |
+| ------------------------------------------------------- | ---------------------------------------------------- |
+| [Offline-First App](recipes/offline-first-app.md)       | WebSocket + OfflineQueue + Cache + IndexedDB         |
+| [Secure File Upload](recipes/secure-file-upload.md)     | RequestInterceptor + StreamProgress + Sanitize + CSP |
+| [Accessible Form](recipes/accessible-form.md)           | Form + Focus + Keyboard + A11y                       |
+| [Resilient API Client](recipes/resilient-api-client.md) | RequestInterceptor + RetryQueue + Cache (SWR)        |
+
 ## Guides
 
 | Guide                                 | Description                           |

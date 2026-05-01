@@ -17,7 +17,7 @@ tree-shakeable, and fully tested.
 - **Secure by default** — cryptographic randomness, input validation, XSS
   prevention
 - **Dual error handling** — throwing and Result-based APIs
-- **Quality-backed** — 4150+ tests, strict ESLint, full coverage
+- **Quality-backed** — 4250+ tests, strict ESLint, full coverage
 
 ## Modules
 
@@ -58,14 +58,14 @@ tree-shakeable, and fully tested.
 
 ### Network & Communication
 
-| Module    | Key Classes                   | Description                   |
-| --------- | ----------------------------- | ----------------------------- |
-| network   | `RetryQueue`, `NetworkStatus` | Retry queue with backoff      |
-| offline   | `OfflineQueue`                | IndexedDB-backed offline sync |
-| websocket | `WebSocketManager`            | WebSocket with auto-reconnect |
-| request   | `RequestInterceptor`          | Fetch middleware and auth     |
-| url       | `UrlBuilder`                  | URL building, query params    |
-| broadcast | `BroadcastManager`            | Cross-tab messaging           |
+| Module    | Key Classes                   | Description                      |
+| --------- | ----------------------------- | -------------------------------- |
+| network   | `RetryQueue`, `NetworkStatus` | Retry queue with backoff         |
+| offline   | `OfflineQueue`                | IndexedDB-backed offline sync    |
+| websocket | `WebSocketManager`            | WebSocket with auto-reconnect    |
+| request   | `RequestInterceptor`          | Fetch middleware, auth, progress |
+| url       | `UrlBuilder`                  | URL building, query params       |
+| broadcast | `BroadcastManager`            | Cross-tab messaging              |
 
 ### Device & Environment
 
@@ -196,6 +196,11 @@ const cleanup = IntersectionObserverWrapper.lazyLoad(
 | [fullscreen](documentation/fullscreen.md)   | [visibility](documentation/visibility.md)     |
 | [geolocation](documentation/geolocation.md) | [websocket](documentation/websocket.md)       |
 | [idle](documentation/idle.md)               | [glossary](documentation/glossary.md)         |
+
+**Recipes:** [Offline-First App](documentation/recipes/offline-first-app.md) ·
+[Secure File Upload](documentation/recipes/secure-file-upload.md) ·
+[Accessible Form](documentation/recipes/accessible-form.md) ·
+[Resilient API Client](documentation/recipes/resilient-api-client.md)
 
 **Guides:** [Browser Support](documentation/browser-support.md) ·
 [Error Handling](documentation/error-handling.md) ·

@@ -40,6 +40,7 @@ api.destroy();
 | SSRF Protection       | Block requests to private/internal IP addresses |
 | Abort Signal Merge    | Combine multiple AbortSignals into one          |
 | Download Progress     | Track download progress via ReadableStream      |
+| Upload Progress       | Track upload progress for request bodies        |
 
 ## Types
 
@@ -61,7 +62,8 @@ api.destroy();
 | `ProgressCallback`           | Progress event callback type                      |
 | `ProgressMiddlewareOptions`  | Options for progress middleware factory           |
 | `trackDownloadProgress`      | Wrap Response body to track download progress     |
-| `createProgressMiddleware`   | Middleware factory for download progress tracking |
+| `trackUploadProgress`        | Wrap request body to track upload progress        |
+| `createProgressMiddleware`   | Middleware factory for upload/download progress   |
 
 ## Configuration Options
 
@@ -493,6 +495,82 @@ const blob = await response.blob();
 - For responses with no body (e.g. 204), a single event is emitted with
   `loaded: 0`
 - Stream cancellation propagates to the original response body
+
+## Upload Progress Tracking
+
+Track upload progress by wrapping the request body in a ReadableStream that
+reports progress on each chunk. Total size is determined automatically for Blob,
+ArrayBuffer, string, and URLSearchParams bodies. For ReadableStream and FormData
+bodies, total is unknown.
+
+### Standalone Usage
+
+```typescript
+import { trackUploadProgress } from '@zappzarapp/browser-utils/request';
+
+const file = new Blob([largeData]);
+const trackedBody = trackUploadProgress(file, (progress) => {
+  console.log(`${progress.loaded} / ${progress.total ?? '?'} bytes`);
+  if (progress.percentage !== null) {
+    updateProgressBar(progress.percentage);
+  }
+});
+
+await fetch('https://example.com/upload', {
+  method: 'POST',
+  body: trackedBody,
+});
+```
+
+### With RequestInterceptor Middleware
+
+```typescript
+import {
+  RequestInterceptor,
+  createProgressMiddleware,
+} from '@zappzarapp/browser-utils/request';
+
+const api = RequestInterceptor.create({
+  baseUrl: 'https://api.example.com',
+});
+
+api.use(
+  createProgressMiddleware({
+    onUploadProgress: (progress) => {
+      console.log(`Uploaded: ${progress.percentage ?? '?'}%`);
+    },
+  })
+);
+
+await api.post('/files', { body: new Blob([data]) });
+```
+
+### Combined Upload and Download Progress
+
+```typescript
+api.use(
+  createProgressMiddleware({
+    onUploadProgress: (progress) => {
+      uploadBar.style.width = `${String(progress.percentage ?? 0)}%`;
+    },
+    onDownloadProgress: (progress) => {
+      downloadBar.style.width = `${String(progress.percentage ?? 0)}%`;
+    },
+  })
+);
+```
+
+### Body Size Detection
+
+| Body Type         | Total Known | Notes                           |
+| ----------------- | ----------- | ------------------------------- |
+| `Blob`            | Yes         | Uses `Blob.size`                |
+| `ArrayBuffer`     | Yes         | Uses `byteLength`               |
+| `ArrayBufferView` | Yes         | Uses `byteLength`               |
+| `string`          | Yes         | Uses UTF-8 encoded byte length  |
+| `URLSearchParams` | Yes         | Uses encoded string byte length |
+| `ReadableStream`  | No          | Size unknown at start           |
+| `FormData`        | No          | Multipart encoding unknown      |
 
 ## Error Handling
 

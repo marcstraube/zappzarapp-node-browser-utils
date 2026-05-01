@@ -8,6 +8,7 @@
  * - Adding middleware for logging, retry, and error handling
  * - Token refresh middleware for JWT authentication
  * - Request timing and performance monitoring
+ * - Upload and download progress tracking
  * - Error handling strategies
  *
  * @packageDocumentation
@@ -17,6 +18,10 @@ import { type CleanupFn } from '@zappzarapp/browser-utils/core';
 import {
   RequestInterceptor,
   RequestError,
+  trackUploadProgress,
+  trackDownloadProgress,
+  createProgressMiddleware,
+  type ProgressInfo,
   type RequestMiddleware,
   type MutableRequestConfig,
   type InterceptedResponse,
@@ -625,6 +630,113 @@ async function fetchTokenFromService(): Promise<string> {
 }
 
 // =============================================================================
+// Progress Tracking
+// =============================================================================
+
+/**
+ * Upload a file with progress reporting.
+ *
+ * Uses trackUploadProgress to wrap the request body in a ReadableStream
+ * that reports bytes sent on each chunk.
+ */
+async function uploadFileWithProgress(
+  api: RequestInterceptorInstance,
+  file: Blob,
+  onProgress: (progress: ProgressInfo) => void
+): Promise<Response> {
+  const trackedBody = trackUploadProgress(file, onProgress);
+
+  const response = await api.fetch('/files/upload', {
+    method: 'POST',
+    body: trackedBody,
+    headers: { 'Content-Type': 'application/octet-stream' },
+  });
+
+  return response;
+}
+
+/**
+ * Download a file with progress reporting.
+ *
+ * Uses trackDownloadProgress to wrap the response body and report
+ * bytes received on each chunk.
+ */
+async function downloadFileWithProgress(
+  url: string,
+  onProgress: (progress: ProgressInfo) => void
+): Promise<Blob> {
+  const response = await fetch(url);
+  const tracked = trackDownloadProgress(response, onProgress);
+  return tracked.blob();
+}
+
+/**
+ * Create an API client with both upload and download progress tracking
+ * via middleware.
+ */
+function createProgressAwareClient(
+  baseUrl: string,
+  onUpload: (progress: ProgressInfo) => void,
+  onDownload: (progress: ProgressInfo) => void
+): RequestInterceptorInstance {
+  const api = RequestInterceptor.create({ baseUrl });
+
+  api.use(
+    createProgressMiddleware({
+      onUploadProgress: onUpload,
+      onDownloadProgress: onDownload,
+    })
+  );
+
+  return api;
+}
+
+/**
+ * Full file upload/download example with progress bars.
+ */
+async function progressExample(): Promise<void> {
+  const api = createProgressAwareClient(
+    'https://api.example.com',
+    (progress) => {
+      const pct = progress.percentage ?? 0;
+      console.log(
+        `[Upload] ${String(pct)}% (${String(progress.loaded)} / ${String(progress.total ?? '?')} bytes)`
+      );
+    },
+    (progress) => {
+      const pct = progress.percentage ?? 0;
+      console.log(
+        `[Download] ${String(pct)}% (${String(progress.loaded)} / ${String(progress.total ?? '?')} bytes)`
+      );
+    }
+  );
+
+  // Upload a file
+  const fileData = new Blob(['file content'], { type: 'text/plain' });
+  await api.fetch('/upload', { method: 'POST', body: fileData });
+
+  // Download a file (progress tracked via middleware)
+  const response = await api.fetch('/files/report.pdf');
+  const _blob = await response.blob();
+
+  // Standalone usage without middleware
+  const largeFile = new Blob([new Uint8Array(1024 * 1024)]);
+  await uploadFileWithProgress(api, largeFile, (progress) => {
+    console.log(`[Standalone Upload] ${String(progress.percentage ?? 0)}%`);
+  });
+
+  const downloadedBlob = await downloadFileWithProgress(
+    'https://api.example.com/files/large.zip',
+    (progress) => {
+      console.log(`[Standalone Download] ${String(progress.percentage ?? 0)}%`);
+    }
+  );
+  console.log(`Downloaded ${String(downloadedBlob.size)} bytes`);
+
+  api.destroy();
+}
+
+// =============================================================================
 // Exports
 // =============================================================================
 
@@ -638,7 +750,10 @@ export {
   createTimingMiddleware,
   createRequestIdMiddleware,
   createTokenStorage,
+  createProgressAwareClient,
   fetchWithRetry,
+  uploadFileWithProgress,
+  downloadFileWithProgress,
   type TokenStorage,
   type ApiResponse,
   type RetryConfig,
@@ -647,4 +762,5 @@ export {
 // Run example if this is the entry point
 if (typeof window !== 'undefined') {
   void exampleUsage();
+  void progressExample();
 }
