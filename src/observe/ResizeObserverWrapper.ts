@@ -324,7 +324,7 @@ export const ResizeObserverWrapper = {
 
     return {
       target,
-      contentRect: contentRect as DOMRectReadOnly,
+      contentRect: contentRect,
       borderBoxSize: [{ blockSize: rect.height, inlineSize: rect.width }],
       contentBoxSize: [{ blockSize: rect.height, inlineSize: rect.width }],
       devicePixelContentBoxSize: [{ blockSize: rect.height, inlineSize: rect.width }],

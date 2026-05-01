@@ -270,7 +270,7 @@ const DEFAULT_CONFIG = {
   heartbeatInterval: 0,
   queueMessages: true,
   maxQueueSize: 100,
-  binaryType: 'blob' as BinaryType,
+  binaryType: 'blob',
 } as const satisfies Partial<WebSocketConfig>;
 
 export const WebSocketManager = {

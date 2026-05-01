@@ -326,7 +326,7 @@ export const ScrollUtils = {
 
     if (throttleMs > 0) {
       throttledHandler = throttle(handler, throttleMs);
-      actualHandler = throttledHandler as EventListener;
+      actualHandler = throttledHandler;
     } else {
       actualHandler = handler;
     }
@@ -381,7 +381,7 @@ export const ScrollUtils = {
 
     if (throttleMs > 0) {
       throttledScrollHandler = throttle(scrollHandler, throttleMs);
-      actualHandler = throttledScrollHandler as EventListener;
+      actualHandler = throttledScrollHandler;
     } else {
       actualHandler = scrollHandler;
     }

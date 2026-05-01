@@ -301,7 +301,7 @@ export const DeviceInfo = {
       return undefined;
     }
 
-    return screen.orientation.type as OrientationType;
+    return screen.orientation.type;
   },
 
   /**
@@ -387,10 +387,10 @@ export const DeviceInfo = {
       return () => {};
     }
 
-    let lastOrientation = screen.orientation.type as OrientationType;
+    let lastOrientation = screen.orientation.type;
 
     const checkOrientation = (): void => {
-      const currentOrientation = screen.orientation.type as OrientationType;
+      const currentOrientation = screen.orientation.type;
       if (currentOrientation !== lastOrientation) {
         lastOrientation = currentOrientation;
         handler(currentOrientation);

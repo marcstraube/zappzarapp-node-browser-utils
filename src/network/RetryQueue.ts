@@ -227,7 +227,7 @@ export class RetryQueue {
   add<T>(operation: () => Promise<T>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       this.queue.push({
-        operation: operation as () => Promise<unknown>,
+        operation: operation,
         resolve: resolve as (value: unknown) => void,
         reject,
         attempts: 0,
