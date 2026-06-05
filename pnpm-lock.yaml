@@ -32,8 +32,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.4.1(jiti@2.6.1))
       '@secretlint/secretlint-rule-preset-recommend':
-        specifier: ^12.2.0
-        version: 12.2.0
+        specifier: ^13.0.2
+        version: 13.0.2
       '@size-limit/preset-small-lib':
         specifier: ^12.0.0
         version: 12.1.0(size-limit@12.1.0(jiti@2.6.1))
@@ -1048,8 +1048,8 @@ packages:
   '@secretlint/resolver@13.0.2':
     resolution: {integrity: sha512-Ko50V0P3YAtEO20xBTczOzguBVk6+taSqkoAPHoOSdsTsSq1gzeYggY1UC8vVEHPGyRp/mb2QOuwIShdJZ8JFg==}
 
-  '@secretlint/secretlint-rule-preset-recommend@12.2.0':
-    resolution: {integrity: sha512-n4qknL6vYRelmyrAyV/Z8I85c6jS6yF/ZxpgcqebjJuECIiel8OT2wIVIq9vk0MwlQN35skaQu0KvfM8uuGeyA==}
+  '@secretlint/secretlint-rule-preset-recommend@13.0.2':
+    resolution: {integrity: sha512-D03Kw51qOgffj9zNlJFZUarVmP8zGcCZNi7A14+vZtHskbbBPEsS/f09idb48rrlMSaRMBN29IkqfbmPyL9xtw==}
     engines: {node: '>=22.0.0'}
 
   '@secretlint/source-creator@13.0.2':
@@ -4719,7 +4719,7 @@ snapshots:
 
   '@secretlint/resolver@13.0.2': {}
 
-  '@secretlint/secretlint-rule-preset-recommend@12.2.0': {}
+  '@secretlint/secretlint-rule-preset-recommend@13.0.2': {}
 
   '@secretlint/source-creator@13.0.2':
     dependencies:
