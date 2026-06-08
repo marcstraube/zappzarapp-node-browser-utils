@@ -15,7 +15,7 @@ cache:
 .node-setup: &node-setup
   before_script:
     - corepack enable
-    - corepack prepare pnpm@10 --activate
+    - corepack prepare --activate
     - pnpm config set store-dir .pnpm-store
     - pnpm install --frozen-lockfile
 
