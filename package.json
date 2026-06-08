@@ -144,7 +144,8 @@
     "./cache": {
       "types": "./dist/cache/index.d.ts",
       "import": "./dist/cache/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -160,6 +161,7 @@
     "lint:md": "markdownlint-cli2 '**/*.md'",
     "lint:md:fix": "markdownlint-cli2 --fix '**/*.md'",
     "lint:secrets": "secretlint '**/*'",
+    "lint:package": "publint && attw --pack . --profile esm-only",
     "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts' '**/*.json' '**/*.md' '!node_modules/**' '!dist/**' '!coverage/**' '!pnpm-lock.yaml' '!CHANGELOG.md'",
     "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.ts' '**/*.json' '**/*.md' '!node_modules/**' '!dist/**' '!coverage/**' '!pnpm-lock.yaml' '!CHANGELOG.md'",
     "typecheck": "tsc --noEmit",
@@ -168,7 +170,7 @@
     "mutation": "stryker run",
     "sbom": "cdxgen -t js -o sbom.cdx.json --spec-version 1.5 --no-recurse --no-babel",
     "docs": "typedoc",
-    "quality": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && pnpm run size:check && pnpm audit --prod --audit-level=moderate",
+    "quality": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && pnpm run lint:package && pnpm run size:check && pnpm audit --prod --audit-level=moderate",
     "prepare": "husky || true"
   },
   "keywords": [
@@ -207,6 +209,7 @@
   },
   "homepage": "https://github.com/marcstraube/zappzarapp-node-browser-utils#readme",
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.3",
     "@commitlint/cli": "^20.4.1",
     "@commitlint/config-conventional": "^20.4.1",
     "@cyclonedx/cdxgen": "^12.0.0",
@@ -235,6 +238,7 @@
     "lint-staged": "^17.0.7",
     "markdownlint-cli2": "^0.22.0",
     "prettier": "^3.0.0",
+    "publint": "^0.3.21",
     "secretlint": "^13.0.2",
     "size-limit": "^12.0.0",
     "typedoc": "^0.28.0",
