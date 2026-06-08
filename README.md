@@ -98,7 +98,7 @@ tree-shakeable, and fully tested.
 
 ## Requirements
 
-- **Node.js** >= 20
+- **Node.js** >= 22
 - **ESM-only** — cannot be `require()`'d from CommonJS
 
 ## Installation
