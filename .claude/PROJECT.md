@@ -9,7 +9,7 @@ package info, structure, and tooling details.
 | ----------- | ------------------------------------------------------------ |
 | Name        | `@zappzarapp/browser-utils`                                  |
 | Description | Zero-dependency browser utilities with security-first design |
-| Node.js     | `>=20.0.0`                                                   |
+| Node.js     | `>=22.0.0`                                                   |
 | License     | MIT                                                          |
 
 ## Directory Structure
