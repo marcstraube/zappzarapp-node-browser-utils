@@ -24,8 +24,8 @@
  * const viewport = DeviceInfo.viewportSize();
  *
  * // Orientation
- * const cleanup = DeviceInfo.onOrientationChange((orientation) => {
- *   console.log(orientation); // 'portrait' | 'landscape'
+ * const cleanup = DeviceInfo.onOrientationChange((state) => {
+ *   console.log(state.type, state.angle, state.orientation);
  * });
  * ```
  */
@@ -78,6 +78,32 @@ export type OrientationLockType =
 export interface Size {
   readonly width: number;
   readonly height: number;
+}
+
+/**
+ * Immutable snapshot of the device's screen orientation.
+ *
+ * Combines the full {@link OrientationType} and angle from the Screen
+ * Orientation API with a derived {@link Orientation} convenience field.
+ */
+export interface OrientationState {
+  /** Full orientation type, e.g. `'portrait-primary'`. */
+  readonly type: OrientationType;
+  /** Orientation angle in degrees: `0`, `90`, `180`, or `270`. */
+  readonly angle: number;
+  /** Derived coarse orientation: `'portrait'` or `'landscape'`. */
+  readonly orientation: Orientation;
+}
+
+/**
+ * Build an immutable {@link OrientationState} from a live `ScreenOrientation`.
+ */
+function toOrientationState(source: ScreenOrientation): OrientationState {
+  return {
+    type: source.type,
+    angle: source.angle,
+    orientation: source.type.startsWith('portrait') ? 'portrait' : 'landscape',
+  };
 }
 
 export const DeviceInfo = {
@@ -284,122 +310,51 @@ export const DeviceInfo = {
 
   /**
    * Check if the Screen Orientation API is supported.
-   * @returns true if Screen Orientation API is available
+   *
+   * Baseline: Safari/iOS 16.4+ (March 2023) — available in all current
+   * evergreen browsers.
+   * @returns true if the Screen Orientation API is available
    */
   isOrientationSupported(): boolean {
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions -- Browser compatibility
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions -- screen.orientation is absent on unsupported engines
     return typeof screen !== 'undefined' && !!screen.orientation;
   },
 
   /**
-   * Get the current orientation type from the Screen Orientation API.
-   * @returns The full orientation type or undefined if not supported
+   * Get an immutable snapshot of the current orientation.
+   * @returns The current {@link OrientationState}, or `undefined` when the
+   *   Screen Orientation API is unsupported.
    */
-  getOrientation(): OrientationType | undefined {
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unnecessary-condition -- Browser compatibility
-    if (typeof screen === 'undefined' || !screen.orientation) {
+  getOrientation(): OrientationState | undefined {
+    if (!DeviceInfo.isOrientationSupported()) {
       return undefined;
     }
 
-    return screen.orientation.type;
+    return toOrientationState(screen.orientation);
   },
 
   /**
-   * Get current orientation.
+   * Listen for orientation changes.
+   *
+   * The handler receives an immutable {@link OrientationState} on every change.
+   * When the Screen Orientation API is unsupported the listener is a no-op and
+   * the returned cleanup does nothing.
+   * @param handler - Called with the new state whenever the orientation changes
+   * @returns Cleanup function that removes the listener
    */
-  orientation(): Orientation {
-    if (typeof window === 'undefined') {
-      return 'portrait';
-    }
-
-    // Try Screen Orientation API first
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unnecessary-condition -- Browser compatibility
-    if (typeof screen !== 'undefined' && screen.orientation) {
-      return screen.orientation.type.includes('portrait') ? 'portrait' : 'landscape';
-    }
-
-    // Fallback to comparing dimensions
-    return window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
-  },
-
-  /**
-   * Get orientation angle.
-   */
-  orientationAngle(): number {
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unnecessary-condition -- Browser compatibility
-    if (typeof screen !== 'undefined' && screen.orientation) {
-      return screen.orientation.angle;
-    }
-
-    return 0;
-  },
-
-  /**
-   * Listen for orientation changes (simplified portrait/landscape).
-   * @param handler - Called when orientation changes
-   * @returns Cleanup function
-   * @deprecated Use onOrientationTypeChange for full OrientationType support
-   */
-  onOrientationChange(handler: (orientation: Orientation) => void): CleanupFn {
-    if (typeof window === 'undefined') {
+  onOrientationChange(handler: (state: OrientationState) => void): CleanupFn {
+    if (!DeviceInfo.isOrientationSupported()) {
       return () => {};
     }
 
-    let lastOrientation = DeviceInfo.orientation();
-
-    const checkOrientation = (): void => {
-      const currentOrientation = DeviceInfo.orientation();
-      if (currentOrientation !== lastOrientation) {
-        lastOrientation = currentOrientation;
-        handler(currentOrientation);
-      }
+    const { orientation } = screen;
+    const onChange = (): void => {
+      handler(toOrientationState(orientation));
     };
 
-    // Use Screen Orientation API if available
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unnecessary-condition -- Browser compatibility
-    if (typeof screen !== 'undefined' && screen.orientation) {
-      screen.orientation.addEventListener('change', checkOrientation);
-      return () => {
-        screen.orientation.removeEventListener('change', checkOrientation);
-      };
-    }
-
-    // Fallback to resize event
-    window.addEventListener('resize', checkOrientation);
+    orientation.addEventListener('change', onChange);
     return () => {
-      window.removeEventListener('resize', checkOrientation);
-    };
-  },
-
-  /**
-   * Listen for orientation type changes with full OrientationType.
-   * Only works when Screen Orientation API is supported.
-   * @param handler - Called when orientation changes with the full OrientationType
-   * @returns Cleanup function
-   */
-  onOrientationTypeChange(handler: (orientation: OrientationType) => void): CleanupFn {
-    if (typeof window === 'undefined') {
-      return () => {};
-    }
-
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unnecessary-condition -- Browser compatibility
-    if (typeof screen === 'undefined' || !screen.orientation) {
-      return () => {};
-    }
-
-    let lastOrientation = screen.orientation.type;
-
-    const checkOrientation = (): void => {
-      const currentOrientation = screen.orientation.type;
-      if (currentOrientation !== lastOrientation) {
-        lastOrientation = currentOrientation;
-        handler(currentOrientation);
-      }
-    };
-
-    screen.orientation.addEventListener('change', checkOrientation);
-    return () => {
-      screen.orientation.removeEventListener('change', checkOrientation);
+      orientation.removeEventListener('change', onChange);
     };
   },
 
@@ -409,8 +364,7 @@ export const DeviceInfo = {
    * @throws Error if orientation lock is not supported or fails
    */
   async lockOrientation(orientation: OrientationLockType): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unnecessary-condition -- Browser compatibility
-    if (typeof screen === 'undefined' || !screen.orientation) {
+    if (!DeviceInfo.isOrientationSupported()) {
       throw new Error('Screen Orientation API is not supported');
     }
 
@@ -424,8 +378,7 @@ export const DeviceInfo = {
    * Unlock orientation.
    */
   unlockOrientation(): void {
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unnecessary-condition -- Browser compatibility
-    if (typeof screen !== 'undefined' && screen.orientation) {
+    if (DeviceInfo.isOrientationSupported()) {
       screen.orientation.unlock();
     }
   },

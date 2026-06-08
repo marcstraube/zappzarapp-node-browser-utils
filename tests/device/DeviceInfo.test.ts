@@ -3,6 +3,7 @@ import {
   DeviceInfo,
   type Orientation,
   type OrientationLockType,
+  type OrientationState,
   type OrientationType,
   type Size,
 } from '../../src/device/index.js';
@@ -228,12 +229,12 @@ describe('DeviceInfo', () => {
       expect(DeviceInfo.pixelRatio()).toBe(1);
     });
 
-    it('orientation should return portrait', () => {
-      expect(DeviceInfo.orientation()).toBe('portrait');
+    it('isOrientationSupported should return false', () => {
+      expect(DeviceInfo.isOrientationSupported()).toBe(false);
     });
 
-    it('orientationAngle should return 0', () => {
-      expect(DeviceInfo.orientationAngle()).toBe(0);
+    it('getOrientation should return undefined', () => {
+      expect(DeviceInfo.getOrientation()).toBeUndefined();
     });
 
     it('onOrientationChange should return no-op cleanup function', () => {
@@ -244,14 +245,6 @@ describe('DeviceInfo', () => {
       expect(handler).not.toHaveBeenCalled();
     });
 
-    it('isOrientationSupported should return false', () => {
-      expect(DeviceInfo.isOrientationSupported()).toBe(false);
-    });
-
-    it('getOrientation should return undefined', () => {
-      expect(DeviceInfo.getOrientation()).toBeUndefined();
-    });
-
     it('lockOrientation should throw error', async () => {
       await expect(DeviceInfo.lockOrientation('portrait')).rejects.toThrow(
         'Screen Orientation API is not supported'
@@ -260,14 +253,6 @@ describe('DeviceInfo', () => {
 
     it('unlockOrientation should not throw', () => {
       expect(() => DeviceInfo.unlockOrientation()).not.toThrow();
-    });
-
-    it('onOrientationTypeChange should return no-op cleanup function', () => {
-      const handler = vi.fn();
-      const cleanup = DeviceInfo.onOrientationTypeChange(handler);
-      expect(typeof cleanup).toBe('function');
-      cleanup();
-      expect(handler).not.toHaveBeenCalled();
     });
 
     it('languages should return empty array', () => {
@@ -1214,73 +1199,32 @@ describe('DeviceInfo', () => {
     });
 
     describe('getOrientation', () => {
-      it('should return the full orientation type when supported', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'portrait-primary',
-              angle: 0,
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
+      const states = [
+        { type: 'portrait-primary', angle: 0, orientation: 'portrait' },
+        { type: 'landscape-primary', angle: 90, orientation: 'landscape' },
+        { type: 'portrait-secondary', angle: 180, orientation: 'portrait' },
+        { type: 'landscape-secondary', angle: 270, orientation: 'landscape' },
+      ] as const satisfies readonly OrientationState[];
 
-        expect(DeviceInfo.getOrientation()).toBe('portrait-primary');
-      });
+      it.each(states)(
+        'should expose $type as an immutable state with derived orientation',
+        ({ type, angle, orientation }) => {
+          Object.defineProperty(globalThis, 'screen', {
+            value: createMockScreen({
+              orientation: {
+                type,
+                angle,
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+              } as unknown as ScreenOrientation,
+            }),
+            writable: true,
+            configurable: true,
+          });
 
-      it('should return landscape-primary', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'landscape-primary',
-              angle: 0,
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
-
-        expect(DeviceInfo.getOrientation()).toBe('landscape-primary');
-      });
-
-      it('should return portrait-secondary', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'portrait-secondary',
-              angle: 180,
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
-
-        expect(DeviceInfo.getOrientation()).toBe('portrait-secondary');
-      });
-
-      it('should return landscape-secondary', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'landscape-secondary',
-              angle: 270,
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
-
-        expect(DeviceInfo.getOrientation()).toBe('landscape-secondary');
-      });
+          expect(DeviceInfo.getOrientation()).toEqual({ type, angle, orientation });
+        }
+      );
 
       it('should return undefined when not supported', () => {
         Object.defineProperty(globalThis, 'screen', {
@@ -1303,170 +1247,11 @@ describe('DeviceInfo', () => {
       });
     });
 
-    describe('orientation', () => {
-      it('should return portrait when screen.orientation.type is portrait-primary', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'portrait-primary',
-              angle: 0,
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
-
-        expect(DeviceInfo.orientation()).toBe('portrait');
-      });
-
-      it('should return portrait when screen.orientation.type is portrait-secondary', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'portrait-secondary',
-              angle: 180,
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
-
-        expect(DeviceInfo.orientation()).toBe('portrait');
-      });
-
-      it('should return landscape when screen.orientation.type is landscape-primary', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'landscape-primary',
-              angle: 0,
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
-
-        expect(DeviceInfo.orientation()).toBe('landscape');
-      });
-
-      it('should return landscape when screen.orientation.type is landscape-secondary', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'landscape-secondary',
-              angle: 270,
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
-
-        expect(DeviceInfo.orientation()).toBe('landscape');
-      });
-
-      it('should fallback to dimension comparison when screen.orientation not available', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 375, innerHeight: 812 }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({ orientation: undefined }),
-          writable: true,
-          configurable: true,
-        });
-
-        expect(DeviceInfo.orientation()).toBe('portrait');
-      });
-
-      it('should return landscape when width > height (fallback)', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 1920, innerHeight: 1080 }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({ orientation: undefined }),
-          writable: true,
-          configurable: true,
-        });
-
-        expect(DeviceInfo.orientation()).toBe('landscape');
-      });
-    });
-
-    describe('orientationAngle', () => {
-      it('should return angle from screen.orientation', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'landscape-primary',
-              angle: 90,
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
-
-        expect(DeviceInfo.orientationAngle()).toBe(90);
-      });
-
-      it('should return 0 when no orientation info available', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({ orientation: undefined }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-
-        expect(DeviceInfo.orientationAngle()).toBe(0);
-      });
-    });
-
     describe('onOrientationChange', () => {
-      it('should add event listener to screen.orientation', () => {
+      it('should add a change listener to screen.orientation', () => {
         const addEventListener = vi.fn();
         const removeEventListener = vi.fn();
 
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
         Object.defineProperty(globalThis, 'screen', {
           value: createMockScreen({
             orientation: {
@@ -1490,19 +1275,7 @@ describe('DeviceInfo', () => {
         expect(removeEventListener).toHaveBeenCalledWith('change', expect.any(Function));
       });
 
-      it('should fallback to resize event when screen.orientation not available', () => {
-        const addEventListener = vi.fn();
-        const removeEventListener = vi.fn();
-
-        Object.defineProperty(globalThis, 'window', {
-          value: {
-            ...createMockWindow(),
-            addEventListener,
-            removeEventListener,
-          },
-          writable: true,
-          configurable: true,
-        });
+      it('should return a no-op cleanup when not supported', () => {
         Object.defineProperty(globalThis, 'screen', {
           value: createMockScreen({ orientation: undefined }),
           writable: true,
@@ -1512,35 +1285,31 @@ describe('DeviceInfo', () => {
         const handler = vi.fn();
         const cleanup = DeviceInfo.onOrientationChange(handler);
 
-        expect(addEventListener).toHaveBeenCalledWith('resize', expect.any(Function));
-
-        cleanup();
-
-        expect(removeEventListener).toHaveBeenCalledWith('resize', expect.any(Function));
+        expect(typeof cleanup).toBe('function');
+        cleanup(); // Should not throw
+        expect(handler).not.toHaveBeenCalled();
       });
 
-      it('should call handler when orientation changes', () => {
+      it('should call handler with the new state on change', () => {
         let capturedHandler: (() => void) | undefined;
         const addEventListener = vi.fn((_event, handler) => {
           capturedHandler = handler as () => void;
         });
 
-        let currentOrientationType = 'portrait-primary';
+        let currentType = 'portrait-primary';
+        let currentAngle = 0;
 
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 375, innerHeight: 812 }),
-          writable: true,
-          configurable: true,
-        });
         Object.defineProperty(globalThis, 'screen', {
           value: {
             ...createMockScreen(),
             get orientation() {
               return {
                 get type() {
-                  return currentOrientationType;
+                  return currentType;
                 },
-                angle: 0,
+                get angle() {
+                  return currentAngle;
+                },
                 addEventListener,
                 removeEventListener: vi.fn(),
               };
@@ -1553,47 +1322,19 @@ describe('DeviceInfo', () => {
         const handler = vi.fn();
         DeviceInfo.onOrientationChange(handler);
 
-        // Initially portrait, no change yet
+        // No call until the native change event fires
         expect(handler).not.toHaveBeenCalled();
 
-        // Simulate orientation change
-        currentOrientationType = 'landscape-primary';
+        // Simulate a native orientation change
+        currentType = 'landscape-primary';
+        currentAngle = 90;
         capturedHandler?.();
 
-        expect(handler).toHaveBeenCalledWith('landscape');
-      });
-
-      it('should not call handler when orientation stays the same', () => {
-        let capturedHandler: (() => void) | undefined;
-        const addEventListener = vi.fn((_event, handler) => {
-          capturedHandler = handler as () => void;
+        expect(handler).toHaveBeenCalledWith({
+          type: 'landscape-primary',
+          angle: 90,
+          orientation: 'landscape',
         });
-
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'portrait-primary',
-              angle: 0,
-              addEventListener,
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
-
-        const handler = vi.fn();
-        DeviceInfo.onOrientationChange(handler);
-
-        // Trigger event without actual orientation change
-        capturedHandler?.();
-
-        expect(handler).not.toHaveBeenCalled();
       });
     });
 
@@ -1686,217 +1427,6 @@ describe('DeviceInfo', () => {
           await DeviceInfo.lockOrientation(orientation);
           expect(lock).toHaveBeenCalledWith(orientation);
         }
-      });
-    });
-
-    describe('onOrientationTypeChange', () => {
-      it('should add event listener to screen.orientation', () => {
-        const addEventListener = vi.fn();
-        const removeEventListener = vi.fn();
-
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'portrait-primary',
-              angle: 0,
-              addEventListener,
-              removeEventListener,
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
-
-        const handler = vi.fn();
-        const cleanup = DeviceInfo.onOrientationTypeChange(handler);
-
-        expect(addEventListener).toHaveBeenCalledWith('change', expect.any(Function));
-
-        cleanup();
-
-        expect(removeEventListener).toHaveBeenCalledWith('change', expect.any(Function));
-      });
-
-      it('should return no-op cleanup when screen.orientation not available', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({ orientation: undefined }),
-          writable: true,
-          configurable: true,
-        });
-
-        const handler = vi.fn();
-        const cleanup = DeviceInfo.onOrientationTypeChange(handler);
-
-        expect(typeof cleanup).toBe('function');
-        cleanup(); // Should not throw
-        expect(handler).not.toHaveBeenCalled();
-      });
-
-      it('should call handler with full OrientationType when orientation changes', () => {
-        let capturedHandler: (() => void) | undefined;
-        const addEventListener = vi.fn((_event, handler) => {
-          capturedHandler = handler as () => void;
-        });
-
-        let currentOrientationType = 'portrait-primary';
-
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 375, innerHeight: 812 }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: {
-            ...createMockScreen(),
-            get orientation() {
-              return {
-                get type() {
-                  return currentOrientationType;
-                },
-                angle: 0,
-                addEventListener,
-                removeEventListener: vi.fn(),
-              };
-            },
-          },
-          writable: true,
-          configurable: true,
-        });
-
-        const handler = vi.fn();
-        DeviceInfo.onOrientationTypeChange(handler);
-
-        // Initially portrait-primary, no change yet
-        expect(handler).not.toHaveBeenCalled();
-
-        // Simulate orientation change to landscape-primary
-        currentOrientationType = 'landscape-primary';
-        capturedHandler?.();
-
-        expect(handler).toHaveBeenCalledWith('landscape-primary');
-      });
-
-      it('should call handler with portrait-secondary', () => {
-        let capturedHandler: (() => void) | undefined;
-        const addEventListener = vi.fn((_event, handler) => {
-          capturedHandler = handler as () => void;
-        });
-
-        let currentOrientationType = 'portrait-primary';
-
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: {
-            ...createMockScreen(),
-            get orientation() {
-              return {
-                get type() {
-                  return currentOrientationType;
-                },
-                angle: 0,
-                addEventListener,
-                removeEventListener: vi.fn(),
-              };
-            },
-          },
-          writable: true,
-          configurable: true,
-        });
-
-        const handler = vi.fn();
-        DeviceInfo.onOrientationTypeChange(handler);
-
-        currentOrientationType = 'portrait-secondary';
-        capturedHandler?.();
-
-        expect(handler).toHaveBeenCalledWith('portrait-secondary');
-      });
-
-      it('should call handler with landscape-secondary', () => {
-        let capturedHandler: (() => void) | undefined;
-        const addEventListener = vi.fn((_event, handler) => {
-          capturedHandler = handler as () => void;
-        });
-
-        let currentOrientationType = 'portrait-primary';
-
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: {
-            ...createMockScreen(),
-            get orientation() {
-              return {
-                get type() {
-                  return currentOrientationType;
-                },
-                angle: 0,
-                addEventListener,
-                removeEventListener: vi.fn(),
-              };
-            },
-          },
-          writable: true,
-          configurable: true,
-        });
-
-        const handler = vi.fn();
-        DeviceInfo.onOrientationTypeChange(handler);
-
-        currentOrientationType = 'landscape-secondary';
-        capturedHandler?.();
-
-        expect(handler).toHaveBeenCalledWith('landscape-secondary');
-      });
-
-      it('should not call handler when orientation type stays the same', () => {
-        let capturedHandler: (() => void) | undefined;
-        const addEventListener = vi.fn((_event, handler) => {
-          capturedHandler = handler as () => void;
-        });
-
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'portrait-primary',
-              angle: 0,
-              addEventListener,
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
-
-        const handler = vi.fn();
-        DeviceInfo.onOrientationTypeChange(handler);
-
-        // Trigger event without actual orientation change
-        capturedHandler?.();
-
-        expect(handler).not.toHaveBeenCalled();
       });
     });
 
@@ -2132,6 +1662,17 @@ describe('DeviceInfo', () => {
         'landscape-secondary',
       ];
       expect(lockTypes).toHaveLength(8);
+    });
+
+    it('should export OrientationState interface', () => {
+      const state: OrientationState = {
+        type: 'portrait-primary',
+        angle: 0,
+        orientation: 'portrait',
+      };
+      expect(state.type).toBe('portrait-primary');
+      expect(state.angle).toBe(0);
+      expect(state.orientation).toBe('portrait');
     });
 
     it('should export Size interface', () => {
