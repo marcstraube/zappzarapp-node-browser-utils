@@ -2,6 +2,9 @@
 export default {
   mutate: ['src/**/*.ts', '!src/**/index.ts'],
   testRunner: 'vitest',
+  // Explicit plugin list: Stryker 9.6.x auto-discovery fails to find plugins
+  // under pnpm's symlinked node_modules ("no TestRunner plugins were loaded").
+  plugins: ['@stryker-mutator/vitest-runner'],
   checkers: [],
   reporters: ['html', 'clear-text', 'progress'],
   htmlReporter: { fileName: 'reports/mutation/mutation.html' },
