@@ -22,8 +22,8 @@ const viewport = DeviceInfo.viewportSize();
 console.log(`Viewport: ${viewport.width}x${viewport.height}`);
 
 // Orientation changes
-const cleanup = DeviceInfo.onOrientationChange((orientation) => {
-  console.log(`Orientation: ${orientation}`);
+const cleanup = DeviceInfo.onOrientationChange((state) => {
+  console.log(`${state.type} @ ${state.angle}° (${state.orientation})`);
 });
 ```
 
@@ -59,13 +59,22 @@ const cleanup = DeviceInfo.onOrientationChange((orientation) => {
 
 ### Orientation
 
-| Method                         | Returns            | Description                             |
-| ------------------------------ | ------------------ | --------------------------------------- |
-| `orientation()`                | `Orientation`      | Get current orientation                 |
-| `orientationAngle()`           | `number`           | Get orientation angle (0, 90, 180, 270) |
-| `onOrientationChange(handler)` | `CleanupFn`        | Listen for orientation changes          |
-| `lockOrientation(orientation)` | `Promise<boolean>` | Lock orientation (if supported)         |
-| `unlockOrientation()`          | `void`             | Unlock orientation                      |
+Built on the
+[Screen Orientation API](https://developer.mozilla.org/docs/Web/API/Screen_Orientation_API)
+(baseline: Safari/iOS 16.4+, March 2023). When the API is unsupported,
+`getOrientation()` returns `undefined` and `onOrientationChange()` is a no-op —
+there is no legacy fallback.
+
+| Method                         | Returns                         | Description                                      |
+| ------------------------------ | ------------------------------- | ------------------------------------------------ |
+| `isOrientationSupported()`     | `boolean`                       | Check if the Screen Orientation API is available |
+| `getOrientation()`             | `OrientationState \| undefined` | Get an immutable snapshot of the orientation     |
+| `onOrientationChange(handler)` | `CleanupFn`                     | Listen for orientation changes                   |
+| `lockOrientation(orientation)` | `Promise<void>`                 | Lock orientation (rejects if unsupported)        |
+| `unlockOrientation()`          | `void`                          | Unlock orientation                               |
+
+The handler passed to `onOrientationChange` receives the new `OrientationState`
+on every change. Use `getOrientation()` for the initial snapshot.
 
 ### Browser Features
 
@@ -81,6 +90,18 @@ const cleanup = DeviceInfo.onOrientationChange((orientation) => {
 
 ```typescript
 type Orientation = 'portrait' | 'landscape';
+
+type OrientationType =
+  | 'portrait-primary'
+  | 'portrait-secondary'
+  | 'landscape-primary'
+  | 'landscape-secondary';
+
+interface OrientationState {
+  readonly type: OrientationType; // full type, e.g. 'portrait-primary'
+  readonly angle: number; // 0 | 90 | 180 | 270
+  readonly orientation: Orientation; // derived: 'portrait' | 'landscape'
+}
 
 interface Size {
   readonly width: number;
@@ -165,12 +186,15 @@ function loadResponsiveImage(basePath: string): string {
 
 ```typescript
 function setupOrientationHandling(): CleanupFn {
-  // Get initial orientation
-  updateLayout(DeviceInfo.orientation());
+  // Apply the initial snapshot (may be undefined if unsupported)
+  const initial = DeviceInfo.getOrientation();
+  if (initial) {
+    updateLayout(initial.orientation);
+  }
 
   // Listen for changes
-  return DeviceInfo.onOrientationChange((orientation) => {
-    updateLayout(orientation);
+  return DeviceInfo.onOrientationChange((state) => {
+    updateLayout(state.orientation);
   });
 }
 
@@ -190,14 +214,14 @@ function updateLayout(orientation: Orientation): void {
 ```typescript
 async function initGame(): Promise<void> {
   // Try to lock to landscape for game
-  const locked = await DeviceInfo.lockOrientation('landscape');
-
-  if (!locked) {
+  try {
+    await DeviceInfo.lockOrientation('landscape');
+  } catch {
     showOrientationPrompt('Please rotate your device to landscape mode');
 
     // Listen for correct orientation
-    const cleanup = DeviceInfo.onOrientationChange((orientation) => {
-      if (orientation === 'landscape') {
+    const cleanup = DeviceInfo.onOrientationChange((state) => {
+      if (state.orientation === 'landscape') {
         hideOrientationPrompt();
         cleanup();
       }

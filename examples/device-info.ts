@@ -16,12 +16,7 @@
  */
 
 import { type CleanupFn } from '@zappzarapp/browser-utils/core';
-import {
-  DeviceInfo,
-  type Orientation,
-  type OrientationType,
-  type Size,
-} from '@zappzarapp/browser-utils/device';
+import { DeviceInfo, type OrientationState, type Size } from '@zappzarapp/browser-utils/device';
 import { Logger } from '@zappzarapp/browser-utils/logging';
 
 // =============================================================================
@@ -38,7 +33,7 @@ interface DeviceProfile {
   readonly screen: Size;
   readonly viewport: Size;
   readonly pixelRatio: number;
-  readonly orientation: Orientation;
+  readonly orientation: OrientationState | undefined;
   readonly memory: number | null;
   readonly cpuCores: number;
   readonly languages: readonly string[];
@@ -172,18 +167,18 @@ function displayScreenInfo(): void {
 function displayOrientationInfo(): void {
   console.log('\n--- Orientation Information ---');
 
-  const orientation = DeviceInfo.orientation();
-  const angle = DeviceInfo.orientationAngle();
   const isSupported = DeviceInfo.isOrientationSupported();
-  const orientationType = DeviceInfo.getOrientation();
-
   console.log(`Orientation API supported: ${isSupported}`);
-  console.log(`Current orientation: ${orientation}`);
-  console.log(`Orientation angle: ${angle} degrees`);
 
-  if (orientationType !== undefined) {
-    console.log(`Full orientation type: ${orientationType}`);
+  const state = DeviceInfo.getOrientation();
+  if (state === undefined) {
+    console.log('No orientation snapshot available');
+    return;
   }
+
+  console.log(`Current orientation: ${state.orientation}`);
+  console.log(`Full orientation type: ${state.type}`);
+  console.log(`Orientation angle: ${state.angle} degrees`);
 
   // Explain angles
   console.log('\nOrientation angles:');
@@ -194,44 +189,23 @@ function displayOrientationInfo(): void {
 }
 
 /**
- * Monitor orientation changes (simplified portrait/landscape).
+ * Monitor orientation changes via the immutable OrientationState.
  */
 function monitorOrientationChange(): CleanupFn {
   console.log('\n--- Orientation Change Monitor ---');
 
-  const cleanup = DeviceInfo.onOrientationChange((orientation: Orientation) => {
-    console.log(`[Orientation] Changed to: ${orientation}`);
+  const cleanup = DeviceInfo.onOrientationChange((state) => {
+    console.log(`[Orientation] Changed to: ${state.type} @ ${state.angle}°`);
 
-    // Respond to orientation change
-    if (orientation === 'landscape') {
+    // Coarse layout hint from the derived orientation
+    if (state.orientation === 'landscape') {
       console.log('  Tip: Consider hiding navigation for more space');
     } else {
       console.log('  Tip: Full navigation visible');
     }
-  });
 
-  console.log('Monitoring orientation changes...');
-  console.log('Rotate your device to see events');
-
-  return cleanup;
-}
-
-/**
- * Monitor full orientation type changes.
- */
-function monitorOrientationTypeChange(): CleanupFn {
-  console.log('\n--- Full Orientation Type Monitor ---');
-
-  if (!DeviceInfo.isOrientationSupported()) {
-    console.log('Screen Orientation API not supported');
-    return () => {};
-  }
-
-  const cleanup = DeviceInfo.onOrientationTypeChange((type: OrientationType) => {
-    console.log(`[Orientation] Type changed to: ${type}`);
-
-    // More specific handling
-    switch (type) {
+    // Fine-grained handling from the full type
+    switch (state.type) {
       case 'portrait-primary':
         console.log('  Normal portrait mode');
         break;
@@ -247,7 +221,8 @@ function monitorOrientationTypeChange(): CleanupFn {
     }
   });
 
-  console.log('Monitoring full orientation type changes...');
+  console.log('Monitoring orientation changes...');
+  console.log('Rotate your device to see events');
 
   return cleanup;
 }
@@ -365,7 +340,7 @@ function buildDeviceProfile(): DeviceProfile {
     screen: DeviceInfo.screenSize(),
     viewport: DeviceInfo.viewportSize(),
     pixelRatio: DeviceInfo.pixelRatio(),
-    orientation: DeviceInfo.orientation(),
+    orientation: DeviceInfo.getOrientation(),
     memory: DeviceInfo.deviceMemory(),
     cpuCores: DeviceInfo.hardwareConcurrency(),
     languages: DeviceInfo.languages(),
@@ -444,7 +419,7 @@ class ResponsiveManager {
       screen: DeviceInfo.screenSize(),
       viewport: DeviceInfo.viewportSize(),
       pixelRatio: DeviceInfo.pixelRatio(),
-      orientation: DeviceInfo.orientation(),
+      orientation: DeviceInfo.getOrientation(),
       memory: DeviceInfo.deviceMemory(),
       cpuCores: DeviceInfo.hardwareConcurrency(),
       languages: DeviceInfo.languages(),
@@ -457,8 +432,8 @@ class ResponsiveManager {
    */
   private setupListeners(): void {
     // Listen for orientation changes
-    const orientationCleanup = DeviceInfo.onOrientationChange((orientation) => {
-      this.logger.info(`Orientation changed to: ${orientation}`);
+    const orientationCleanup = DeviceInfo.onOrientationChange((state) => {
+      this.logger.info(`Orientation changed to: ${state.type}`);
       this.profile = this.captureProfile();
       this.onProfileChange();
     });
@@ -734,7 +709,6 @@ export async function runDeviceInfoExamples(): Promise<{ cleanup: () => void }> 
   displayScreenInfo();
   displayOrientationInfo();
   cleanups.push(monitorOrientationChange());
-  cleanups.push(monitorOrientationTypeChange());
   await orientationLockExample();
   displayDeviceCapabilities();
   buildDeviceProfile();
