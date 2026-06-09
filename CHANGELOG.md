@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.3.0...v2.0.0) (2026-06-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* unify DeviceInfo orientation API into immutable OrientationState ([#125](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/125)) (#126)
+* require Node.js 22+ ([#121](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/121))
+
+### Features
+
+* require Node.js 22+ ([#121](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/121)) ([8271272](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/8271272f0d5f6dd08a8f4945c49d1df64d498408))
+* unify DeviceInfo orientation API into immutable OrientationState ([#125](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/125)) ([#126](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/126)) ([9250510](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/925051040a78d749f09b7087a3ec9db838f0dd9e))
+
 ## [1.3.0](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.2.0...v1.3.0) (2026-05-01)
 
 
