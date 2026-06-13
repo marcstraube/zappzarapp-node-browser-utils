@@ -134,7 +134,7 @@ Module boundaries are enforced via `eslint-plugin-boundaries`:
 | Functions  | 99%+       |
 | Lines      | 99%+       |
 
-## Current Modules (35)
+## Current Modules (36)
 
 | Module       | Path                | Purpose                                                           |
 | ------------ | ------------------- | ----------------------------------------------------------------- |
@@ -143,6 +143,7 @@ Module boundaries are enforced via `eslint-plugin-boundaries`:
 | broadcast    | `src/broadcast/`    | BroadcastChannel cross-tab messaging                              |
 | cache        | `src/cache/`        | HTTP cache with stale-while-revalidate                            |
 | clipboard    | `src/clipboard/`    | Clipboard API with fallback                                       |
+| color        | `src/color/`        | Color parse/convert/validate/contrast/manipulate                  |
 | cookie       | `src/cookie/`       | Cookie management (Secure, SameSite)                              |
 | csp          | `src/csp/`          | CSP-aware security utilities                                      |
 | device       | `src/device/`       | Device/browser detection                                          |
@@ -258,11 +259,12 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ### Scopes
 
-`core`, `a11y`, `broadcast`, `clipboard`, `cookie`, `csp`, `device`, `download`,
-`events`, `features`, `focus`, `form`, `fullscreen`, `geolocation`, `html`,
-`idle`, `indexeddb`, `keyboard`, `logging`, `media`, `network`, `notification`,
-`observe`, `offline`, `performance`, `request`, `sanitize`, `scroll`, `session`,
-`storage`, `url`, `visibility`, `websocket`, `build`, `deps`, `ci`
+`core`, `a11y`, `broadcast`, `clipboard`, `color`, `cookie`, `csp`, `device`,
+`download`, `events`, `features`, `focus`, `form`, `fullscreen`, `geolocation`,
+`html`, `idle`, `indexeddb`, `keyboard`, `logging`, `media`, `network`,
+`notification`, `observe`, `offline`, `performance`, `request`, `sanitize`,
+`scroll`, `session`, `storage`, `url`, `visibility`, `websocket`, `build`,
+`deps`, `ci`
 
 ## CI/CD
 

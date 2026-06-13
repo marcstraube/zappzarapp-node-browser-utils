@@ -11,7 +11,7 @@ tree-shakeable, and fully tested.
 
 ## Highlights
 
-- **All-in-one** — 35 browser modules in a single, tree-shakeable package
+- **All-in-one** — 36 browser modules in a single, tree-shakeable package
 - **Type-safe** — strict TypeScript with generics throughout
 - **Zero dependencies** — no runtime dependencies
 - **Secure by default** — cryptographic randomness, input validation, XSS
@@ -88,13 +88,14 @@ tree-shakeable, and fully tested.
 
 ### Utility
 
-| Module       | Key Classes                              | Description                 |
-| ------------ | ---------------------------------------- | --------------------------- |
-| logging      | `Logger`                                 | Console logging with levels |
-| notification | `NotificationManager`                    | Browser notifications       |
-| download     | `FileDownload`                           | File download triggers      |
-| a11y         | `AriaUtils`, `LiveAnnouncer`, `SkipLink` | Accessibility utilities     |
-| core         | `Result`, `Validator`, `debounce`        | Types, errors, validation   |
+| Module       | Key Classes                              | Description                  |
+| ------------ | ---------------------------------------- | ---------------------------- |
+| color        | `parseColor`, `contrastRatio`, `mix`     | Color parse/convert/contrast |
+| logging      | `Logger`                                 | Console logging with levels  |
+| notification | `NotificationManager`                    | Browser notifications        |
+| download     | `FileDownload`                           | File download triggers       |
+| a11y         | `AriaUtils`, `LiveAnnouncer`, `SkipLink` | Accessibility utilities      |
+| core         | `Result`, `Validator`, `debounce`        | Types, errors, validation    |
 
 ## Requirements
 
@@ -179,10 +180,11 @@ const cleanup = IntersectionObserverWrapper.lazyLoad(
 
 | Module                                      | Module                                        |
 | ------------------------------------------- | --------------------------------------------- |
-| [a11y](documentation/a11y.md)               | [keyboard](documentation/keyboard.md)         |
-| [broadcast](documentation/broadcast.md)     | [logging](documentation/logging.md)           |
-| [cache](documentation/cache.md)             | [media](documentation/media.md)               |
-| [clipboard](documentation/clipboard.md)     | [network](documentation/network.md)           |
+| [a11y](documentation/a11y.md)               | [idle](documentation/idle.md)                 |
+| [broadcast](documentation/broadcast.md)     | [keyboard](documentation/keyboard.md)         |
+| [cache](documentation/cache.md)             | [logging](documentation/logging.md)           |
+| [clipboard](documentation/clipboard.md)     | [media](documentation/media.md)               |
+| [color](documentation/color.md)             | [network](documentation/network.md)           |
 | [cookie](documentation/cookie.md)           | [notification](documentation/notification.md) |
 | [core](documentation/core.md)               | [observe](documentation/observe.md)           |
 | [csp](documentation/csp.md)                 | [offline](documentation/offline.md)           |
@@ -195,7 +197,7 @@ const cleanup = IntersectionObserverWrapper.lazyLoad(
 | [form](documentation/form.md)               | [url](documentation/url.md)                   |
 | [fullscreen](documentation/fullscreen.md)   | [visibility](documentation/visibility.md)     |
 | [geolocation](documentation/geolocation.md) | [websocket](documentation/websocket.md)       |
-| [idle](documentation/idle.md)               | [glossary](documentation/glossary.md)         |
+|                                             | [glossary](documentation/glossary.md)         |
 
 **Recipes:** [Offline-First App](documentation/recipes/offline-first-app.md) ·
 [Secure File Upload](documentation/recipes/secure-file-upload.md) ·
