@@ -10,6 +10,7 @@ security-first design.
 | [broadcast](broadcast.md)       | Multi-tab communication via BroadcastChannel API          |
 | [cache](cache.md)               | HTTP-style caching with stale-while-revalidate            |
 | [clipboard](clipboard.md)       | Clipboard API with fallbacks                              |
+| [color](color.md)               | Color parsing, conversion, contrast, and manipulation     |
 | [cookie](cookie.md)             | Cookie management with secure defaults (SameSite, Secure) |
 | [core](core.md)                 | Core types, Result, errors, validation, and crypto utils  |
 | [csp](csp.md)                   | CSP detection and utilities                               |

@@ -6,6 +6,12 @@
     "limit": "7.5 kB"
   },
   {
+    "name": "color",
+    "path": "dist/color/index.js",
+    "import": "*",
+    "limit": "3 kB"
+  },
+  {
     "name": "storage",
     "path": "dist/storage/index.js",
     "import": "*",
