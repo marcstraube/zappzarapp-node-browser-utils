@@ -26,6 +26,7 @@ security-first design.
 | [html](html.md)                 | HTML escaping and DOM helpers for XSS prevention          |
 | [idle](idle.md)                 | Idle callback utilities for background tasks              |
 | [indexeddb](indexeddb.md)       | Promise-based IndexedDB wrapper with transactions         |
+| [intl](intl.md)                 | Locale-aware Intl formatting and locale negotiation       |
 | [keyboard](keyboard.md)         | Keyboard shortcuts and hotkey management                  |
 | [logging](logging.md)           | Configurable browser logging with log levels              |
 | [media](media.md)               | Media queries and responsive breakpoints                  |
