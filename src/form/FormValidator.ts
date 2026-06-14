@@ -499,7 +499,13 @@ export class FormValidator {
 
   /**
    * Validate a single field asynchronously.
-   * Runs sync validators first, then async validators.
+   *
+   * Synchronous rules run first. The async validator only runs when the
+   * synchronous rules pass: an already-invalid value (e.g. too short, wrong
+   * format) short-circuits before the async validator is invoked, so it never
+   * issues an expensive lookup (uniqueness check, availability probe) for a
+   * value that is invalid regardless. Configure the threshold via the usual
+   * sync rules (`minLength`, `pattern`, ...).
    *
    * @param field - The form field element to validate
    * @param options - Optional configuration
@@ -524,26 +530,30 @@ export class FormValidator {
 
     // Run sync validation first
     const syncResult = this.validateField(form, fieldName);
-    const errors: string[] = [...syncResult.errors];
 
-    // Skip async validation if sync validation failed for required field
-    // or if there's no async validator
+    // No async validator → sync result is final
     if (rules.asyncCustom === undefined) {
       return syncResult;
     }
 
-    // Skip async if required validation already failed (no value to validate)
+    // Gate: skip the async validator when sync validation already failed.
+    // The field is invalid regardless, so there is no point running it.
+    if (!syncResult.valid) {
+      return syncResult;
+    }
+
+    // Sync passed but the field is empty (optional, no value) → nothing for
+    // the async validator to check.
     const data = FormSerializer.toObject(form);
     const value = data[fieldName];
     const stringValue = FormValidator.toStringValue(value);
 
-    if (!stringValue.trim() && rules.required !== true) {
-      return { valid: errors.length === 0, errors, firstError: errors[0] ?? null };
+    if (!stringValue.trim()) {
+      return syncResult;
     }
 
-    if (!stringValue.trim() && rules.required === true) {
-      return { valid: false, errors, firstError: errors[0] ?? null };
-    }
+    // Sync passed and there is a value: errors starts empty.
+    const errors: string[] = [];
 
     // Run async validation with optional debouncing
     const skipDebounce = options?.skipDebounce ?? false;
@@ -577,7 +587,10 @@ export class FormValidator {
 
   /**
    * Validate an entire form asynchronously.
-   * Runs all sync validators first, then all async validators in parallel.
+   *
+   * All sync validators run first, then the async validators of the fields
+   * whose sync rules passed run in parallel. A field that fails sync
+   * validation skips its async validator (see {@link validateFieldAsync}).
    *
    * @param form - The form element to validate
    * @returns Promise resolving to validation result
@@ -607,13 +620,13 @@ export class FormValidator {
 
       // Queue async validation if applicable
       if (fieldRules.asyncCustom !== undefined) {
-        // Skip async if no value and not required
-        if (!stringValue.trim() && fieldRules.required !== true) {
+        // Gate: skip the async validator when sync validation already failed.
+        if (syncErrors.length > 0) {
           continue;
         }
 
-        // Skip async if required validation failed
-        if (!stringValue.trim() && fieldRules.required === true) {
+        // Sync passed but the field is empty (optional) → nothing to check.
+        if (!stringValue.trim()) {
           continue;
         }
 

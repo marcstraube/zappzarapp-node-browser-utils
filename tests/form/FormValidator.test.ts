@@ -1360,7 +1360,7 @@ describe('FormValidator', () => {
         expect(result.firstError).toBe('Username is already taken');
       });
 
-      it('should run sync validation before async validation', async () => {
+      it('should skip async validation when sync validation fails (gate)', async () => {
         const input = addInput(form, 'text', 'username', 'ab');
 
         const asyncValidator = vi.fn().mockResolvedValue(null);
@@ -1374,8 +1374,25 @@ describe('FormValidator', () => {
 
         expect(result.valid).toBe(false);
         expect(result.errors).toContain('username must be at least 3 characters');
-        // Async validator should still run because sync passed for the field
-        expect(asyncValidator).toHaveBeenCalled();
+        // Async validator must NOT run: the value is already invalid, so there
+        // is no point issuing the (potentially expensive) async lookup.
+        expect(asyncValidator).not.toHaveBeenCalled();
+      });
+
+      it('should run async validation once sync validation passes', async () => {
+        const input = addInput(form, 'text', 'username', 'abcd');
+
+        const asyncValidator = vi.fn().mockResolvedValue(null);
+        const validator = FormValidator.create({
+          username: { minLength: 3, asyncCustom: asyncValidator },
+        });
+
+        const resultPromise = validator.validateFieldAsync(input, { skipDebounce: true });
+        await vi.runAllTimersAsync();
+        const result = await resultPromise;
+
+        expect(result.valid).toBe(true);
+        expect(asyncValidator).toHaveBeenCalledWith('abcd', 'username', form);
       });
 
       it('should skip async validation if no asyncCustom rule', async () => {
@@ -1601,12 +1618,12 @@ describe('FormValidator', () => {
         expect(result.errors.email).toContain('Email already registered');
       });
 
-      it('should combine sync and async errors', async () => {
-        addInput(form, 'text', 'username', 'ab'); // Too short
-        addInput(form, 'email', 'email', 'valid@example.com');
+      it('should combine sync and async errors across fields', async () => {
+        addInput(form, 'text', 'username', 'ab'); // Too short → sync fails
+        addInput(form, 'email', 'email', 'valid@example.com'); // sync passes
 
         const usernameValidator = vi.fn().mockResolvedValue('Username is taken');
-        const emailValidator = vi.fn().mockResolvedValue(null);
+        const emailValidator = vi.fn().mockResolvedValue('Email is taken');
 
         const validator = FormValidator.create({
           username: { minLength: 3, asyncCustom: usernameValidator },
@@ -1618,8 +1635,12 @@ describe('FormValidator', () => {
         const result = await resultPromise;
 
         expect(result.valid).toBe(false);
-        // Username has sync error (minLength) and async may still be called
+        // Username: sync error only — its async validator is gated out.
         expect(result.errors.username).toContain('username must be at least 3 characters');
+        expect(result.errors.username).not.toContain('Username is taken');
+        expect(usernameValidator).not.toHaveBeenCalled();
+        // Email: sync passed, so its async error surfaces.
+        expect(result.errors.email).toContain('Email is taken');
       });
 
       it('should skip async for empty required fields', async () => {
