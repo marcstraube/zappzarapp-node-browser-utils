@@ -12,6 +12,12 @@
     "limit": "3 kB"
   },
   {
+    "name": "intl",
+    "path": "dist/intl/index.js",
+    "import": "*",
+    "limit": "2 kB"
+  },
+  {
     "name": "storage",
     "path": "dist/storage/index.js",
     "import": "*",
