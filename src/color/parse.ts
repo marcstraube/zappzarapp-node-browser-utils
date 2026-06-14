@@ -7,7 +7,7 @@
  * produces the canonical {@link Rgba} hub.
  *
  * Security: input is length-bounded and matched with linear, non-backtracking
- * regexes; out-of-range channels are normalised (clamped), and raw input is
+ * regexes; out-of-range channels are normalized (clamped), and raw input is
  * never reflected in error messages (see {@link ColorError}).
  *
  * @example
@@ -264,7 +264,7 @@ function parseRgbFunction(args: string): Result<Rgba, ColorError> {
 
 function parseHueToken(token: string): number | null {
   // parseFloat reads the leading number and ignores any "deg" suffix; the range
-  // is normalised later by normalizeHue.
+  // is normalized later by normalizeHue.
   return HUE_TOKEN_RE.test(token) ? parseFloat(token) : null;
 }
 
