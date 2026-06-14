@@ -474,6 +474,60 @@ describe('RequestInterceptor', () => {
 
         api.destroy();
       });
+
+      it('should make HEAD request', async () => {
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+        });
+
+        await api.head('/users');
+
+        const init = getLastFetchInit(mockFetch);
+        expect(init.method).toBe('HEAD');
+
+        api.destroy();
+      });
+
+      it('should make OPTIONS request', async () => {
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+        });
+
+        await api.options('/users');
+
+        const init = getLastFetchInit(mockFetch);
+        expect(init.method).toBe('OPTIONS');
+
+        api.destroy();
+      });
+
+      it('should forward options to HEAD request', async () => {
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+        });
+
+        await api.head('/users', { headers: { 'X-Custom': 'value' } });
+
+        const init = getLastFetchInit(mockFetch);
+        expect(init.method).toBe('HEAD');
+        expect(init.headers.get('X-Custom')).toBe('value');
+
+        api.destroy();
+      });
+
+      it('should forward options to OPTIONS request', async () => {
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+        });
+
+        await api.options('/users', { headers: { 'X-Custom': 'value' } });
+
+        const init = getLastFetchInit(mockFetch);
+        expect(init.method).toBe('OPTIONS');
+        expect(init.headers.get('X-Custom')).toBe('value');
+
+        api.destroy();
+      });
     });
 
     describe('authentication', () => {

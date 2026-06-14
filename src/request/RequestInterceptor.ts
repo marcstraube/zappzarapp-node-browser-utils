@@ -368,6 +368,12 @@ export interface RequestInterceptorInstance {
   /** Make a DELETE request */
   delete(url: string, options?: Omit<RequestInit, 'method'>): Promise<Response>;
 
+  /** Make a HEAD request */
+  head(url: string, options?: Omit<RequestInit, 'method'>): Promise<Response>;
+
+  /** Make an OPTIONS request */
+  options(url: string, options?: Omit<RequestInit, 'method'>): Promise<Response>;
+
   /** Add middleware */
   use(middleware: RequestMiddleware): CleanupFn;
 
@@ -793,6 +799,14 @@ export const RequestInterceptor = {
 
       delete(url: string, options?: Omit<RequestInit, 'method'>): Promise<Response> {
         return executeFetch(url, { ...options, method: 'DELETE' });
+      },
+
+      head(url: string, options?: Omit<RequestInit, 'method'>): Promise<Response> {
+        return executeFetch(url, { ...options, method: 'HEAD' });
+      },
+
+      options(url: string, init?: Omit<RequestInit, 'method'>): Promise<Response> {
+        return executeFetch(url, { ...init, method: 'OPTIONS' });
       },
 
       use(middleware: RequestMiddleware): CleanupFn {
