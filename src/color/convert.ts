@@ -27,7 +27,7 @@ export interface Hsl {
 }
 
 /**
- * Normalise a hue (in degrees) into the `[0, 360)` range.
+ * Normalize a hue (in degrees) into the `[0, 360)` range.
  *
  * @internal
  */
@@ -54,7 +54,7 @@ export function rgbaToHsl(color: Rgba): Hsl {
   const l = (max + min) / 2;
 
   if (max === min) {
-    // Achromatic (grey): hue and saturation are undefined → 0.
+    // Achromatic (gray): hue and saturation are undefined → 0.
     return { h: 0, s: 0, l: l * 100, a: color.a };
   }
 
@@ -100,7 +100,7 @@ function hue2rgb(p: number, q: number, t: number): number {
 /**
  * Convert an {@link Hsl} color to the canonical {@link Rgba} hub.
  *
- * Out-of-range inputs are normalised: hue wraps into `[0, 360)`, saturation and
+ * Out-of-range inputs are normalized: hue wraps into `[0, 360)`, saturation and
  * lightness clamp to `0–100`.
  *
  * @param hsl Source HSL color.
@@ -112,8 +112,8 @@ export function hslToRgba(hsl: Hsl): Rgba {
   const l = Math.min(100, Math.max(0, hsl.l)) / 100;
 
   if (s === 0) {
-    const grey = l * 255;
-    return makeRgba(grey, grey, grey, hsl.a);
+    const gray = l * 255;
+    return makeRgba(gray, gray, gray, hsl.a);
   }
 
   const q = l < 0.5 ? l * (1 + s) : l + s - l * s;

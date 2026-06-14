@@ -62,11 +62,11 @@ rather than rejected — parsing one returns a `COLOR_UNSUPPORTED_SPACE` error
 (not `COLOR_INVALID_FORMAT`), so a real-but-unsupported color is distinguishable
 from malformed input.
 
-### Normalisation policy
+### Normalization policy
 
 Input is parsed leniently but securely:
 
-- Surrounding/internal whitespace is tolerated; hex case is normalised.
+- Surrounding/internal whitespace is tolerated; hex case is normalized.
 - Out-of-range values are **clamped**: `rgb(256, -1, 300)` → `255, 0, 255`; hue
   `400°` → `40°`; `s 150%` → `100%`; alpha `1.5` → `1`.
 - Mixing `<number>` and `<percentage>` across the three `rgb()` channels is
