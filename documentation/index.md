@@ -10,6 +10,7 @@ security-first design.
 | [broadcast](broadcast.md)       | Multi-tab communication via BroadcastChannel API          |
 | [cache](cache.md)               | HTTP-style caching with stale-while-revalidate            |
 | [clipboard](clipboard.md)       | Clipboard API with fallbacks                              |
+| [color](color.md)               | Color parsing, conversion, contrast, and manipulation     |
 | [cookie](cookie.md)             | Cookie management with secure defaults (SameSite, Secure) |
 | [core](core.md)                 | Core types, Result, errors, validation, and crypto utils  |
 | [csp](csp.md)                   | CSP detection and utilities                               |
@@ -25,6 +26,7 @@ security-first design.
 | [html](html.md)                 | HTML escaping and DOM helpers for XSS prevention          |
 | [idle](idle.md)                 | Idle callback utilities for background tasks              |
 | [indexeddb](indexeddb.md)       | Promise-based IndexedDB wrapper with transactions         |
+| [intl](intl.md)                 | Locale-aware Intl formatting and locale negotiation       |
 | [keyboard](keyboard.md)         | Keyboard shortcuts and hotkey management                  |
 | [logging](logging.md)           | Configurable browser logging with log levels              |
 | [media](media.md)               | Media queries and responsive breakpoints                  |

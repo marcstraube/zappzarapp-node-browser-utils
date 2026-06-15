@@ -6,6 +6,7 @@
  * - Connection failures
  * - Send failures
  * - Invalid state or URL
+ * - Invalid fallback configuration
  *
  * @example
  * ```TypeScript
@@ -28,7 +29,8 @@ export type WebSocketErrorCode =
   | 'CONNECTION_FAILED'
   | 'SEND_FAILED'
   | 'INVALID_STATE'
-  | 'INVALID_URL';
+  | 'INVALID_URL'
+  | 'INVALID_CONFIG';
 
 /**
  * WebSocket-specific error.
@@ -60,5 +62,12 @@ export class WebSocketError extends BrowserUtilsError {
 
   static invalidUrl(url: string): WebSocketError {
     return new WebSocketError('INVALID_URL', `Invalid WebSocket URL: "${url}"`);
+  }
+
+  static fallbackUrlRequired(fallback: string): WebSocketError {
+    return new WebSocketError(
+      'INVALID_CONFIG',
+      `"fallbackUrl" is required when fallback is "${fallback}"`
+    );
   }
 }

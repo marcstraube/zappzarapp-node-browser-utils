@@ -11,7 +11,7 @@ tree-shakeable, and fully tested.
 
 ## Highlights
 
-- **All-in-one** — 35 browser modules in a single, tree-shakeable package
+- **All-in-one** — 37 browser modules in a single, tree-shakeable package
 - **Type-safe** — strict TypeScript with generics throughout
 - **Zero dependencies** — no runtime dependencies
 - **Secure by default** — cryptographic randomness, input validation, XSS
@@ -58,14 +58,14 @@ tree-shakeable, and fully tested.
 
 ### Network & Communication
 
-| Module    | Key Classes                   | Description                      |
-| --------- | ----------------------------- | -------------------------------- |
-| network   | `RetryQueue`, `NetworkStatus` | Retry queue with backoff         |
-| offline   | `OfflineQueue`                | IndexedDB-backed offline sync    |
-| websocket | `WebSocketManager`            | WebSocket with auto-reconnect    |
-| request   | `RequestInterceptor`          | Fetch middleware, auth, progress |
-| url       | `UrlBuilder`                  | URL building, query params       |
-| broadcast | `BroadcastManager`            | Cross-tab messaging              |
+| Module    | Key Classes                   | Description                           |
+| --------- | ----------------------------- | ------------------------------------- |
+| network   | `RetryQueue`, `NetworkStatus` | Retry queue with backoff              |
+| offline   | `OfflineQueue`                | IndexedDB-backed offline sync         |
+| websocket | `WebSocketManager`            | Auto-reconnect + SSE/polling fallback |
+| request   | `RequestInterceptor`          | Fetch middleware, auth, progress      |
+| url       | `UrlBuilder`                  | URL building, query params            |
+| broadcast | `BroadcastManager`            | Cross-tab messaging                   |
 
 ### Device & Environment
 
@@ -88,13 +88,15 @@ tree-shakeable, and fully tested.
 
 ### Utility
 
-| Module       | Key Classes                              | Description                 |
-| ------------ | ---------------------------------------- | --------------------------- |
-| logging      | `Logger`                                 | Console logging with levels |
-| notification | `NotificationManager`                    | Browser notifications       |
-| download     | `FileDownload`                           | File download triggers      |
-| a11y         | `AriaUtils`, `LiveAnnouncer`, `SkipLink` | Accessibility utilities     |
-| core         | `Result`, `Validator`, `debounce`        | Types, errors, validation   |
+| Module       | Key Classes                                   | Description                          |
+| ------------ | --------------------------------------------- | ------------------------------------ |
+| color        | `parseColor`, `contrastRatio`, `mix`          | Color parse/convert/contrast         |
+| intl         | `formatNumber`, `formatDate`, `resolveLocale` | Intl formatting + locale negotiation |
+| logging      | `Logger`                                      | Console logging with levels          |
+| notification | `NotificationManager`                         | Browser notifications                |
+| download     | `FileDownload`                                | File download triggers               |
+| a11y         | `AriaUtils`, `LiveAnnouncer`, `SkipLink`      | Accessibility utilities              |
+| core         | `Result`, `Validator`, `debounce`             | Types, errors, validation            |
 
 ## Requirements
 
@@ -179,10 +181,11 @@ const cleanup = IntersectionObserverWrapper.lazyLoad(
 
 | Module                                      | Module                                        |
 | ------------------------------------------- | --------------------------------------------- |
-| [a11y](documentation/a11y.md)               | [keyboard](documentation/keyboard.md)         |
-| [broadcast](documentation/broadcast.md)     | [logging](documentation/logging.md)           |
-| [cache](documentation/cache.md)             | [media](documentation/media.md)               |
-| [clipboard](documentation/clipboard.md)     | [network](documentation/network.md)           |
+| [a11y](documentation/a11y.md)               | [intl](documentation/intl.md)                 |
+| [broadcast](documentation/broadcast.md)     | [keyboard](documentation/keyboard.md)         |
+| [cache](documentation/cache.md)             | [logging](documentation/logging.md)           |
+| [clipboard](documentation/clipboard.md)     | [media](documentation/media.md)               |
+| [color](documentation/color.md)             | [network](documentation/network.md)           |
 | [cookie](documentation/cookie.md)           | [notification](documentation/notification.md) |
 | [core](documentation/core.md)               | [observe](documentation/observe.md)           |
 | [csp](documentation/csp.md)                 | [offline](documentation/offline.md)           |

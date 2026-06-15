@@ -129,7 +129,7 @@ const response = await api.fetch('/users', {
 });
 ```
 
-#### get(), post(), put(), patch(), delete()
+#### get(), post(), put(), patch(), delete(), head(), options()
 
 Convenience methods for HTTP verbs.
 
@@ -148,6 +148,12 @@ await api.patch('/users/1', JSON.stringify({ active: true }));
 
 // DELETE request
 await api.delete('/users/1');
+
+// HEAD request (headers only, no body)
+const meta = await api.head('/users/1');
+
+// OPTIONS request (e.g. CORS preflight inspection)
+const allowed = await api.options('/users');
 ```
 
 #### use()

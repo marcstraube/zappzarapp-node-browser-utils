@@ -15,6 +15,8 @@ export {
   IndexedDBError,
   BroadcastError,
   CspError,
+  ColorError,
+  IntlError,
 } from './errors/index.js';
 export type {
   StorageErrorCode,
@@ -30,6 +32,8 @@ export type {
   IndexedDBErrorCode,
   BroadcastErrorCode,
   CspErrorCode,
+  ColorErrorCode,
+  IntlErrorCode,
 } from './errors/index.js';
 
 // Result Type
