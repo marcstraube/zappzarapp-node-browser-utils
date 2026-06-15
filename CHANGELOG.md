@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v2.0.0...v2.1.0) (2026-06-15)
+
+
+### Features
+
+* **color:** add color module (parse, convert, validate, contrast, manipulate) ([#136](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/136)) ([38f1fef](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/38f1fefc78697fe81951a4066ae9204658e80386))
+* **form:** add async loading state, field-change and submit handlers ([#145](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/145)) ([0a44283](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/0a44283aff0064ea8a4c4239fcaf0379596c43f0))
+* **intl:** add intl module (Intl-API wrappers + locale negotiation) ([#142](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/142)) ([919785c](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/919785c3168c687b81e2dbf394bd4322a120a3aa))
+* **request:** add head() and options() convenience methods ([#143](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/143)) ([3d28fdd](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/3d28fdd7b8cf05da5ac98623090acdaaf001f256))
+* **websocket:** add SSE/polling transport fallback ([#148](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/148)) ([2c3870f](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/2c3870f5c1e71452e7fb698bf64e6a06d8a0a66e))
+
+
+### Bug Fixes
+
+* **form:** gate async validation behind passing sync validation ([#144](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/144)) ([af088ec](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/af088ec8d9db51e0eae9861977a042d5b582b724))
+
 ## [2.0.0](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v1.3.0...v2.0.0) (2026-06-09)
 
 
