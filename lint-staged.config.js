@@ -12,6 +12,7 @@ export default {
   'src/**/*.ts': ['pnpm exec prettier --write', 'pnpm exec eslint --fix --max-warnings=0'],
   'tests/**/*.ts': ['pnpm exec prettier --write', 'pnpm exec eslint --fix --max-warnings=0'],
   'examples/**/*.ts': ['pnpm exec prettier --write'],
+  'benchmarks/**/*.ts': ['pnpm exec prettier --write'],
 
   // Markdown files (auto-fix and re-stage)
   '**/*.md': ['pnpm exec prettier --write', 'pnpm exec markdownlint-cli2 --fix'],

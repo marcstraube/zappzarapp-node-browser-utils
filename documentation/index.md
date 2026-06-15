@@ -64,6 +64,7 @@ security-first design.
 | [Error Handling](error-handling.md)   | Throwing vs Result-based API patterns |
 | [Security Guide](security-guide.md)   | Detailed security considerations      |
 | [Glossary](glossary.md)               | Browser and web development terms     |
+| [Benchmarks](benchmarks.md)           | Bundle size and runtime benchmarks    |
 
 ## Installation
 
