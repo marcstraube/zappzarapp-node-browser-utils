@@ -21,16 +21,16 @@ function isPrivateIPv4(hostname: string): boolean {
   const octet4 = match[4];
 
   // Type guard: verify all groups exist
+  /* v8 ignore start -- regex match guarantees all four capture groups exist */
   if (
     octet1 === undefined ||
     octet2 === undefined ||
     octet3 === undefined ||
     octet4 === undefined
   ) {
-    /* v8 ignore start */
     return false;
-    /* v8 ignore stop */
   }
+  /* v8 ignore stop */
 
   const octets = [
     parseInt(octet1, 10),
@@ -40,11 +40,11 @@ function isPrivateIPv4(hostname: string): boolean {
   ];
 
   // Validate octets are in range 0-255
+  /* v8 ignore start -- URL parsing rejects octets > 255 before this point */
   if (octets.some((octet) => octet > 255)) {
-    /* v8 ignore start */
     return false;
-    /* v8 ignore stop */
   }
+  /* v8 ignore stop */
 
   const first = octets[0];
   const second = octets[1];

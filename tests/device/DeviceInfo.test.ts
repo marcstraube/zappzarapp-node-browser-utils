@@ -121,6 +121,31 @@ function createMockWindow(
   return base;
 }
 
+/**
+ * Define a property on `globalThis` using the standard test descriptor
+ * (writable + configurable), so it can be reset in `afterEach`.
+ */
+function defineGlobal(name: string, value: unknown): void {
+  Object.defineProperty(globalThis, name, {
+    value,
+    writable: true,
+    configurable: true,
+  });
+}
+
+/**
+ * Create a mock `ScreenOrientation` with overridable defaults.
+ */
+function mockOrientation(overrides: Partial<ScreenOrientation> = {}): ScreenOrientation {
+  return {
+    type: 'landscape-primary',
+    angle: 0,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    ...overrides,
+  } as unknown as ScreenOrientation;
+}
+
 describe('DeviceInfo', () => {
   let originalNavigator: PropertyDescriptor | undefined;
   let originalScreen: PropertyDescriptor | undefined;
@@ -157,21 +182,9 @@ describe('DeviceInfo', () => {
   describe('Non-Browser Environment', () => {
     beforeEach(() => {
       // Remove global objects to simulate non-browser environment
-      Object.defineProperty(globalThis, 'window', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(globalThis, 'navigator', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(globalThis, 'screen', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
+      defineGlobal('window', undefined);
+      defineGlobal('navigator', undefined);
+      defineGlobal('screen', undefined);
     });
 
     it('isTouchDevice should return false', () => {
@@ -284,61 +297,25 @@ describe('DeviceInfo', () => {
     describe('isTouchDevice', () => {
       it('should return true when ontouchstart is present', () => {
         const mockWindow = createMockWindow({ ontouchstart: null });
-        Object.defineProperty(globalThis, 'window', {
-          value: mockWindow,
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ maxTouchPoints: 0 }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: false }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('window', mockWindow);
+        defineGlobal('navigator', createMockNavigator({ maxTouchPoints: 0 }));
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
         expect(DeviceInfo.isTouchDevice()).toBe(true);
       });
 
       it('should return true when maxTouchPoints > 0', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ maxTouchPoints: 5 }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: false }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('window', createMockWindow());
+        defineGlobal('navigator', createMockNavigator({ maxTouchPoints: 5 }));
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
         expect(DeviceInfo.isTouchDevice()).toBe(true);
       });
 
       it('should return true when pointer: coarse media query matches', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ maxTouchPoints: 0 }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: true }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('window', createMockWindow());
+        defineGlobal('navigator', createMockNavigator({ maxTouchPoints: 0 }));
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
 
         expect(DeviceInfo.isTouchDevice()).toBe(true);
       });
@@ -348,22 +325,10 @@ describe('DeviceInfo', () => {
         const mockWindow = createMockWindow();
         delete (mockWindow as Record<string, unknown>).ontouchstart;
 
-        Object.defineProperty(globalThis, 'window', {
-          value: mockWindow,
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ maxTouchPoints: 0 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('window', mockWindow);
+        defineGlobal('navigator', createMockNavigator({ maxTouchPoints: 0 }));
         // Override global matchMedia to return non-touch
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: false }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
         expect(DeviceInfo.isTouchDevice()).toBe(false);
       });
@@ -371,116 +336,64 @@ describe('DeviceInfo', () => {
 
     describe('isMobile', () => {
       it('should return true for iPhone user agent', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.iPhone }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 375 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.iPhone }));
+        defineGlobal('window', createMockWindow({ innerWidth: 375 }));
 
         expect(DeviceInfo.isMobile()).toBe(true);
       });
 
       it('should return true for iPad user agent', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.iPad }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.iPad }));
 
         expect(DeviceInfo.isMobile()).toBe(true);
       });
 
       it('should return true for iPod user agent', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.iPod }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.iPod }));
 
         expect(DeviceInfo.isMobile()).toBe(true);
       });
 
       it('should return true for Android phone user agent', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.androidPhone }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.androidPhone }));
 
         expect(DeviceInfo.isMobile()).toBe(true);
       });
 
       it('should return true for Android tablet user agent', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.androidTablet }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.androidTablet }));
 
         expect(DeviceInfo.isMobile()).toBe(true);
       });
 
       it('should return true for webOS user agent', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.webOS }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.webOS }));
 
         expect(DeviceInfo.isMobile()).toBe(true);
       });
 
       it('should return true for BlackBerry user agent', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.blackberry }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.blackberry }));
 
         expect(DeviceInfo.isMobile()).toBe(true);
       });
 
       it('should return true for Windows Phone user agent', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.windowsPhone }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.windowsPhone }));
 
         expect(DeviceInfo.isMobile()).toBe(true);
       });
 
       it('should return true for narrow screen width (< 768px)', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.macOSChrome }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 767 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.macOSChrome }));
+        defineGlobal('window', createMockWindow({ innerWidth: 767 }));
 
         expect(DeviceInfo.isMobile()).toBe(true);
       });
 
       it('should return false for desktop user agent with wide screen', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.macOSChrome }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 1920 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.macOSChrome }));
+        defineGlobal('window', createMockWindow({ innerWidth: 1920 }));
 
         expect(DeviceInfo.isMobile()).toBe(false);
       });
@@ -488,92 +401,56 @@ describe('DeviceInfo', () => {
 
     describe('isTablet', () => {
       it('should return true for iPad user agent', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.iPad }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 1024, innerHeight: 768 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.iPad }));
+        defineGlobal('window', createMockWindow({ innerWidth: 1024, innerHeight: 768 }));
 
         expect(DeviceInfo.isTablet()).toBe(true);
       });
 
       it('should return true for iPadOS 13+ (Macintosh with touch)', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.iPadOS13,
             maxTouchPoints: 5,
-          }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ ontouchstart: null, innerWidth: 1024, innerHeight: 768 }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: false }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
+        defineGlobal(
+          'window',
+          createMockWindow({ ontouchstart: null, innerWidth: 1024, innerHeight: 768 })
+        );
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
         expect(DeviceInfo.isTablet()).toBe(true);
       });
 
       it('should return true for Android tablet (android without mobile)', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.androidTablet }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 1024, innerHeight: 768 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.androidTablet }));
+        defineGlobal('window', createMockWindow({ innerWidth: 1024, innerHeight: 768 }));
 
         expect(DeviceInfo.isTablet()).toBe(true);
       });
 
       it('should return true for tablet-sized touch device (600-1366px)', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.linuxChrome,
             maxTouchPoints: 5,
-          }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ ontouchstart: null, innerWidth: 800, innerHeight: 1200 }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: false }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
+        defineGlobal(
+          'window',
+          createMockWindow({ ontouchstart: null, innerWidth: 800, innerHeight: 1200 })
+        );
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
         expect(DeviceInfo.isTablet()).toBe(true);
       });
 
       it('should return false for Android phone', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.androidPhone }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 375, innerHeight: 812 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.androidPhone }));
+        defineGlobal('window', createMockWindow({ innerWidth: 375, innerHeight: 812 }));
 
         expect(DeviceInfo.isTablet()).toBe(false);
       });
@@ -583,24 +460,15 @@ describe('DeviceInfo', () => {
         const mockWindow = createMockWindow({ innerWidth: 1920, innerHeight: 1080 });
         delete (mockWindow as Record<string, unknown>).ontouchstart;
 
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.macOSChrome,
             maxTouchPoints: 0,
-          }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: mockWindow,
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: false }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
+        defineGlobal('window', mockWindow);
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
         expect(DeviceInfo.isTablet()).toBe(false);
       });
@@ -612,54 +480,29 @@ describe('DeviceInfo', () => {
         const mockWindow = createMockWindow({ innerWidth: 1920, innerHeight: 1080 });
         delete (mockWindow as Record<string, unknown>).ontouchstart;
 
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.macOSChrome,
             maxTouchPoints: 0,
-          }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: mockWindow,
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: false }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
+        defineGlobal('window', mockWindow);
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
         expect(DeviceInfo.isDesktop()).toBe(true);
       });
 
       it('should return false for mobile device', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.iPhone }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 375 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.iPhone }));
+        defineGlobal('window', createMockWindow({ innerWidth: 375 }));
 
         expect(DeviceInfo.isDesktop()).toBe(false);
       });
 
       it('should return false for tablet', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.iPad }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 1024, innerHeight: 768 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.iPad }));
+        defineGlobal('window', createMockWindow({ innerWidth: 1024, innerHeight: 768 }));
 
         expect(DeviceInfo.isDesktop()).toBe(false);
       });
@@ -673,87 +516,53 @@ describe('DeviceInfo', () => {
   describe('OS Detection', () => {
     describe('isIOS', () => {
       it('should return true for iPhone', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.iPhone }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.iPhone }));
 
         expect(DeviceInfo.isIOS()).toBe(true);
       });
 
       it('should return true for iPad', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.iPad }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.iPad }));
 
         expect(DeviceInfo.isIOS()).toBe(true);
       });
 
       it('should return true for iPod', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.iPod }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.iPod }));
 
         expect(DeviceInfo.isIOS()).toBe(true);
       });
 
       it('should return true for iPadOS 13+ (Macintosh with touch)', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.iPadOS13,
             maxTouchPoints: 5,
-          }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ ontouchstart: null }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: false }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
+        defineGlobal('window', createMockWindow({ ontouchstart: null }));
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
         expect(DeviceInfo.isIOS()).toBe(true);
       });
 
       it('should return false for Android', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.androidPhone }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.androidPhone }));
 
         expect(DeviceInfo.isIOS()).toBe(false);
       });
 
       it('should return false for macOS desktop', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.macOSChrome,
             maxTouchPoints: 0,
-          }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: false }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
+        defineGlobal('window', createMockWindow());
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
         expect(DeviceInfo.isIOS()).toBe(false);
       });
@@ -761,41 +570,25 @@ describe('DeviceInfo', () => {
 
     describe('isAndroid', () => {
       it('should return true for Android phone', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.androidPhone }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.androidPhone }));
 
         expect(DeviceInfo.isAndroid()).toBe(true);
       });
 
       it('should return true for Android tablet', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.androidTablet }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.androidTablet }));
 
         expect(DeviceInfo.isAndroid()).toBe(true);
       });
 
       it('should return false for iOS', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.iPhone }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.iPhone }));
 
         expect(DeviceInfo.isAndroid()).toBe(false);
       });
 
       it('should return false for desktop', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ userAgent: USER_AGENTS.macOSChrome }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.macOSChrome }));
 
         expect(DeviceInfo.isAndroid()).toBe(false);
       });
@@ -803,56 +596,49 @@ describe('DeviceInfo', () => {
 
     describe('isWindows', () => {
       it('should return true for Windows platform', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.windowsChrome,
             platform: PLATFORMS.windows,
-          }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
 
         expect(DeviceInfo.isWindows()).toBe(true);
       });
 
       it('should prefer userAgentData.platform over navigator.platform', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: {
-            ...createMockNavigator({
-              userAgent: USER_AGENTS.windowsChrome,
-              platform: PLATFORMS.linux,
-            }),
-            userAgentData: { platform: 'Windows' },
-          },
-          writable: true,
-          configurable: true,
+        defineGlobal('navigator', {
+          ...createMockNavigator({
+            userAgent: USER_AGENTS.windowsChrome,
+            platform: PLATFORMS.linux,
+          }),
+          userAgentData: { platform: 'Windows' },
         });
 
         expect(DeviceInfo.isWindows()).toBe(true);
       });
 
       it('should return false for macOS', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.macOSChrome,
             platform: PLATFORMS.macOS,
-          }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
 
         expect(DeviceInfo.isWindows()).toBe(false);
       });
 
       it('should return false for Linux', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.linuxChrome,
             platform: PLATFORMS.linux,
-          }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
 
         expect(DeviceInfo.isWindows()).toBe(false);
       });
@@ -860,102 +646,70 @@ describe('DeviceInfo', () => {
 
     describe('isMacOS', () => {
       it('should return true for macOS platform', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.macOSChrome,
             platform: PLATFORMS.macOS,
             maxTouchPoints: 0,
-          }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: false }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
+        defineGlobal('window', createMockWindow());
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
         expect(DeviceInfo.isMacOS()).toBe(true);
       });
 
       it('should prefer userAgentData.platform over navigator.platform', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: {
-            ...createMockNavigator({
-              userAgent: USER_AGENTS.macOSChrome,
-              platform: PLATFORMS.linux,
-              maxTouchPoints: 0,
-            }),
-            userAgentData: { platform: 'macOS' },
-          },
-          writable: true,
-          configurable: true,
+        defineGlobal('navigator', {
+          ...createMockNavigator({
+            userAgent: USER_AGENTS.macOSChrome,
+            platform: PLATFORMS.linux,
+            maxTouchPoints: 0,
+          }),
+          userAgentData: { platform: 'macOS' },
         });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow(),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: false }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('window', createMockWindow());
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
         expect(DeviceInfo.isMacOS()).toBe(true);
       });
 
       it('should return false for iOS (even though platform contains mac)', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.iPhone,
             platform: PLATFORMS.iPhone,
-          }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
 
         expect(DeviceInfo.isMacOS()).toBe(false);
       });
 
       it('should return false for iPadOS 13+ (Macintosh with touch)', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.iPadOS13,
             platform: PLATFORMS.macOS,
             maxTouchPoints: 5,
-          }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ ontouchstart: null }),
-          writable: true,
-          configurable: true,
-        });
-        Object.defineProperty(globalThis, 'matchMedia', {
-          value: vi.fn().mockReturnValue({ matches: false }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
+        defineGlobal('window', createMockWindow({ ontouchstart: null }));
+        defineGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
         expect(DeviceInfo.isMacOS()).toBe(false);
       });
 
       it('should return false for Windows', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.windowsChrome,
             platform: PLATFORMS.windows,
-          }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
 
         expect(DeviceInfo.isMacOS()).toBe(false);
       });
@@ -963,69 +717,61 @@ describe('DeviceInfo', () => {
 
     describe('isLinux', () => {
       it('should return true for Linux platform', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.linuxChrome,
             platform: PLATFORMS.linux,
-          }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
 
         expect(DeviceInfo.isLinux()).toBe(true);
       });
 
       it('should prefer userAgentData.platform over navigator.platform', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: {
-            ...createMockNavigator({
-              userAgent: USER_AGENTS.linuxChrome,
-              platform: PLATFORMS.windows,
-            }),
-            userAgentData: { platform: 'Linux' },
-          },
-          writable: true,
-          configurable: true,
+        defineGlobal('navigator', {
+          ...createMockNavigator({
+            userAgent: USER_AGENTS.linuxChrome,
+            platform: PLATFORMS.windows,
+          }),
+          userAgentData: { platform: 'Linux' },
         });
 
         expect(DeviceInfo.isLinux()).toBe(true);
       });
 
       it('should return false for Android (even though platform is Linux)', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.androidPhone,
             platform: PLATFORMS.android,
-          }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
 
         expect(DeviceInfo.isLinux()).toBe(false);
       });
 
       it('should return false for macOS', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.macOSChrome,
             platform: PLATFORMS.macOS,
-          }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
 
         expect(DeviceInfo.isLinux()).toBe(false);
       });
 
       it('should return false for Windows', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({
+        defineGlobal(
+          'navigator',
+          createMockNavigator({
             userAgent: USER_AGENTS.windowsChrome,
             platform: PLATFORMS.windows,
-          }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
 
         expect(DeviceInfo.isLinux()).toBe(false);
       });
@@ -1039,11 +785,7 @@ describe('DeviceInfo', () => {
   describe('Screen & Viewport', () => {
     describe('screenSize', () => {
       it('should return screen dimensions', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({ width: 1920, height: 1080 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('screen', createMockScreen({ width: 1920, height: 1080 }));
 
         const size = DeviceInfo.screenSize();
 
@@ -1051,11 +793,7 @@ describe('DeviceInfo', () => {
       });
 
       it('should return different dimensions for mobile', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({ width: 375, height: 812 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('screen', createMockScreen({ width: 375, height: 812 }));
 
         const size = DeviceInfo.screenSize();
 
@@ -1065,11 +803,7 @@ describe('DeviceInfo', () => {
 
     describe('viewportSize', () => {
       it('should return viewport dimensions', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 1920, innerHeight: 1080 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('window', createMockWindow({ innerWidth: 1920, innerHeight: 1080 }));
 
         const size = DeviceInfo.viewportSize();
 
@@ -1077,11 +811,7 @@ describe('DeviceInfo', () => {
       });
 
       it('should return different dimensions for mobile', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ innerWidth: 375, innerHeight: 667 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('window', createMockWindow({ innerWidth: 375, innerHeight: 667 }));
 
         const size = DeviceInfo.viewportSize();
 
@@ -1091,11 +821,7 @@ describe('DeviceInfo', () => {
 
     describe('availableScreenSize', () => {
       it('should return available screen dimensions', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({ availWidth: 1920, availHeight: 1040 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('screen', createMockScreen({ availWidth: 1920, availHeight: 1040 }));
 
         const size = DeviceInfo.availableScreenSize();
 
@@ -1103,16 +829,15 @@ describe('DeviceInfo', () => {
       });
 
       it('should account for taskbar', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
+        defineGlobal(
+          'screen',
+          createMockScreen({
             width: 1920,
             height: 1080,
             availWidth: 1920,
             availHeight: 1040,
-          }),
-          writable: true,
-          configurable: true,
-        });
+          })
+        );
 
         const screenSize = DeviceInfo.screenSize();
         const availableSize = DeviceInfo.availableScreenSize();
@@ -1123,31 +848,19 @@ describe('DeviceInfo', () => {
 
     describe('pixelRatio', () => {
       it('should return device pixel ratio', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ devicePixelRatio: 2 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('window', createMockWindow({ devicePixelRatio: 2 }));
 
         expect(DeviceInfo.pixelRatio()).toBe(2);
       });
 
       it('should return 1 as default when not defined', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ devicePixelRatio: undefined }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('window', createMockWindow({ devicePixelRatio: undefined }));
 
         expect(DeviceInfo.pixelRatio()).toBe(1);
       });
 
       it('should handle high DPI displays', () => {
-        Object.defineProperty(globalThis, 'window', {
-          value: createMockWindow({ devicePixelRatio: 3 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('window', createMockWindow({ devicePixelRatio: 3 }));
 
         expect(DeviceInfo.pixelRatio()).toBe(3);
       });
@@ -1161,38 +874,24 @@ describe('DeviceInfo', () => {
   describe('Orientation', () => {
     describe('isOrientationSupported', () => {
       it('should return true when screen.orientation is available', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'portrait-primary',
-              angle: 0,
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal(
+          'screen',
+          createMockScreen({
+            orientation: mockOrientation({ type: 'portrait-primary' }),
+          })
+        );
 
         expect(DeviceInfo.isOrientationSupported()).toBe(true);
       });
 
       it('should return false when screen.orientation is not available', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({ orientation: undefined }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('screen', createMockScreen({ orientation: undefined }));
 
         expect(DeviceInfo.isOrientationSupported()).toBe(false);
       });
 
       it('should return false when screen is undefined', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: undefined,
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('screen', undefined);
 
         expect(DeviceInfo.isOrientationSupported()).toBe(false);
       });
@@ -1209,39 +908,25 @@ describe('DeviceInfo', () => {
       it.each(states)(
         'should expose $type as an immutable state with derived orientation',
         ({ type, angle, orientation }) => {
-          Object.defineProperty(globalThis, 'screen', {
-            value: createMockScreen({
-              orientation: {
-                type,
-                angle,
-                addEventListener: vi.fn(),
-                removeEventListener: vi.fn(),
-              } as unknown as ScreenOrientation,
-            }),
-            writable: true,
-            configurable: true,
-          });
+          defineGlobal(
+            'screen',
+            createMockScreen({
+              orientation: mockOrientation({ type, angle }),
+            })
+          );
 
           expect(DeviceInfo.getOrientation()).toEqual({ type, angle, orientation });
         }
       );
 
       it('should return undefined when not supported', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({ orientation: undefined }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('screen', createMockScreen({ orientation: undefined }));
 
         expect(DeviceInfo.getOrientation()).toBeUndefined();
       });
 
       it('should return undefined when screen is undefined', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: undefined,
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('screen', undefined);
 
         expect(DeviceInfo.getOrientation()).toBeUndefined();
       });
@@ -1252,18 +937,16 @@ describe('DeviceInfo', () => {
         const addEventListener = vi.fn();
         const removeEventListener = vi.fn();
 
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
+        defineGlobal(
+          'screen',
+          createMockScreen({
+            orientation: mockOrientation({
               type: 'portrait-primary',
-              angle: 0,
               addEventListener,
               removeEventListener,
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
+            }),
+          })
+        );
 
         const handler = vi.fn();
         const cleanup = DeviceInfo.onOrientationChange(handler);
@@ -1276,11 +959,7 @@ describe('DeviceInfo', () => {
       });
 
       it('should return a no-op cleanup when not supported', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({ orientation: undefined }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('screen', createMockScreen({ orientation: undefined }));
 
         const handler = vi.fn();
         const cleanup = DeviceInfo.onOrientationChange(handler);
@@ -1299,24 +978,20 @@ describe('DeviceInfo', () => {
         let currentType = 'portrait-primary';
         let currentAngle = 0;
 
-        Object.defineProperty(globalThis, 'screen', {
-          value: {
-            ...createMockScreen(),
-            get orientation() {
-              return {
-                get type() {
-                  return currentType;
-                },
-                get angle() {
-                  return currentAngle;
-                },
-                addEventListener,
-                removeEventListener: vi.fn(),
-              };
-            },
+        defineGlobal('screen', {
+          ...createMockScreen(),
+          get orientation() {
+            return {
+              get type() {
+                return currentType;
+              },
+              get angle() {
+                return currentAngle;
+              },
+              addEventListener,
+              removeEventListener: vi.fn(),
+            };
           },
-          writable: true,
-          configurable: true,
         });
 
         const handler = vi.fn();
@@ -1342,20 +1017,12 @@ describe('DeviceInfo', () => {
       it('should resolve when lock succeeds', async () => {
         const lock = vi.fn().mockResolvedValue(undefined);
 
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'portrait-primary',
-              angle: 0,
-              lock,
-              unlock: vi.fn(),
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal(
+          'screen',
+          createMockScreen({
+            orientation: mockOrientation({ type: 'portrait-primary', lock, unlock: vi.fn() }),
+          })
+        );
 
         await expect(DeviceInfo.lockOrientation('portrait')).resolves.toBeUndefined();
         expect(lock).toHaveBeenCalledWith('portrait');
@@ -1364,30 +1031,18 @@ describe('DeviceInfo', () => {
       it('should throw when lock fails', async () => {
         const lock = vi.fn().mockRejectedValue(new Error('Lock not supported'));
 
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'portrait-primary',
-              angle: 0,
-              lock,
-              unlock: vi.fn(),
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal(
+          'screen',
+          createMockScreen({
+            orientation: mockOrientation({ type: 'portrait-primary', lock, unlock: vi.fn() }),
+          })
+        );
 
         await expect(DeviceInfo.lockOrientation('landscape')).rejects.toThrow('Lock not supported');
       });
 
       it('should throw when screen.orientation not available', async () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({ orientation: undefined }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('screen', createMockScreen({ orientation: undefined }));
 
         await expect(DeviceInfo.lockOrientation('portrait')).rejects.toThrow(
           'Screen Orientation API is not supported'
@@ -1397,20 +1052,12 @@ describe('DeviceInfo', () => {
       it('should support all orientation lock types', async () => {
         const lock = vi.fn().mockResolvedValue(undefined);
 
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'portrait-primary',
-              angle: 0,
-              lock,
-              unlock: vi.fn(),
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal(
+          'screen',
+          createMockScreen({
+            orientation: mockOrientation({ type: 'portrait-primary', lock, unlock: vi.fn() }),
+          })
+        );
 
         const orientations: OrientationLockType[] = [
           'any',
@@ -1434,20 +1081,12 @@ describe('DeviceInfo', () => {
       it('should call unlock on screen.orientation', () => {
         const unlock = vi.fn();
 
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({
-            orientation: {
-              type: 'portrait-primary',
-              angle: 0,
-              lock: vi.fn(),
-              unlock,
-              addEventListener: vi.fn(),
-              removeEventListener: vi.fn(),
-            } as unknown as ScreenOrientation,
-          }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal(
+          'screen',
+          createMockScreen({
+            orientation: mockOrientation({ type: 'portrait-primary', lock: vi.fn(), unlock }),
+          })
+        );
 
         DeviceInfo.unlockOrientation();
 
@@ -1455,11 +1094,7 @@ describe('DeviceInfo', () => {
       });
 
       it('should not throw when screen.orientation not available', () => {
-        Object.defineProperty(globalThis, 'screen', {
-          value: createMockScreen({ orientation: undefined }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('screen', createMockScreen({ orientation: undefined }));
 
         expect(() => DeviceInfo.unlockOrientation()).not.toThrow();
       });
@@ -1473,38 +1108,29 @@ describe('DeviceInfo', () => {
   describe('Browser Features', () => {
     describe('languages', () => {
       it('should return navigator.languages', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ languages: ['en-US', 'en', 'de'] as readonly string[] }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal(
+          'navigator',
+          createMockNavigator({ languages: ['en-US', 'en', 'de'] as readonly string[] })
+        );
 
         expect(DeviceInfo.languages()).toEqual(['en-US', 'en', 'de']);
       });
 
       it('should fallback to navigator.language when languages not available', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: {
-            ...createMockNavigator(),
-            languages: undefined,
-            language: 'fr-FR',
-          },
-          writable: true,
-          configurable: true,
+        defineGlobal('navigator', {
+          ...createMockNavigator(),
+          languages: undefined,
+          language: 'fr-FR',
         });
 
         expect(DeviceInfo.languages()).toEqual(['fr-FR']);
       });
 
       it('should filter out falsy values in fallback', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: {
-            ...createMockNavigator(),
-            languages: undefined,
-            language: '',
-          },
-          writable: true,
-          configurable: true,
+        defineGlobal('navigator', {
+          ...createMockNavigator(),
+          languages: undefined,
+          language: '',
         });
 
         expect(DeviceInfo.languages()).toEqual([]);
@@ -1513,23 +1139,15 @@ describe('DeviceInfo', () => {
 
     describe('language', () => {
       it('should return navigator.language', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ language: 'de-DE' }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ language: 'de-DE' }));
 
         expect(DeviceInfo.language()).toBe('de-DE');
       });
 
       it('should fallback to en when language not available', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: {
-            ...createMockNavigator(),
-            language: undefined,
-          },
-          writable: true,
-          configurable: true,
+        defineGlobal('navigator', {
+          ...createMockNavigator(),
+          language: undefined,
         });
 
         expect(DeviceInfo.language()).toBe('en');
@@ -1538,21 +1156,13 @@ describe('DeviceInfo', () => {
 
     describe('isOnline', () => {
       it('should return true when online', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ onLine: true }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ onLine: true }));
 
         expect(DeviceInfo.isOnline()).toBe(true);
       });
 
       it('should return false when offline', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ onLine: false }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ onLine: false }));
 
         expect(DeviceInfo.isOnline()).toBe(false);
       });
@@ -1560,23 +1170,15 @@ describe('DeviceInfo', () => {
 
     describe('hardwareConcurrency', () => {
       it('should return navigator.hardwareConcurrency', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator({ hardwareConcurrency: 16 }),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator({ hardwareConcurrency: 16 }));
 
         expect(DeviceInfo.hardwareConcurrency()).toBe(16);
       });
 
       it('should fallback to 1 when not available', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: {
-            ...createMockNavigator(),
-            hardwareConcurrency: undefined,
-          },
-          writable: true,
-          configurable: true,
+        defineGlobal('navigator', {
+          ...createMockNavigator(),
+          hardwareConcurrency: undefined,
         });
 
         expect(DeviceInfo.hardwareConcurrency()).toBe(1);
@@ -1585,36 +1187,24 @@ describe('DeviceInfo', () => {
 
     describe('deviceMemory', () => {
       it('should return deviceMemory when available', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: {
-            ...createMockNavigator(),
-            deviceMemory: 8,
-          },
-          writable: true,
-          configurable: true,
+        defineGlobal('navigator', {
+          ...createMockNavigator(),
+          deviceMemory: 8,
         });
 
         expect(DeviceInfo.deviceMemory()).toBe(8);
       });
 
       it('should return null when deviceMemory not available', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: createMockNavigator(),
-          writable: true,
-          configurable: true,
-        });
+        defineGlobal('navigator', createMockNavigator());
 
         expect(DeviceInfo.deviceMemory()).toBeNull();
       });
 
       it('should handle low memory devices', () => {
-        Object.defineProperty(globalThis, 'navigator', {
-          value: {
-            ...createMockNavigator(),
-            deviceMemory: 0.5,
-          },
-          writable: true,
-          configurable: true,
+        defineGlobal('navigator', {
+          ...createMockNavigator(),
+          deviceMemory: 0.5,
         });
 
         expect(DeviceInfo.deviceMemory()).toBe(0.5);
@@ -1688,42 +1278,22 @@ describe('DeviceInfo', () => {
 
   describe('Edge Cases', () => {
     it('should handle matchMedia not being defined', () => {
-      Object.defineProperty(globalThis, 'window', {
-        value: {
-          ...createMockWindow(),
-          matchMedia: undefined,
-        },
-        writable: true,
-        configurable: true,
+      defineGlobal('window', {
+        ...createMockWindow(),
+        matchMedia: undefined,
       });
-      Object.defineProperty(globalThis, 'navigator', {
-        value: createMockNavigator({ maxTouchPoints: 0 }),
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(globalThis, 'matchMedia', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
+      defineGlobal('navigator', createMockNavigator({ maxTouchPoints: 0 }));
+      defineGlobal('matchMedia', undefined);
 
       // Should not throw and return false
       expect(DeviceInfo.isTouchDevice()).toBe(false);
     });
 
     it('should handle window with missing innerWidth (mobile check)', () => {
-      Object.defineProperty(globalThis, 'navigator', {
-        value: createMockNavigator({ userAgent: USER_AGENTS.macOSChrome }),
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(globalThis, 'window', {
-        value: {
-          ...createMockWindow(),
-          innerWidth: undefined,
-        },
-        writable: true,
-        configurable: true,
+      defineGlobal('navigator', createMockNavigator({ userAgent: USER_AGENTS.macOSChrome }));
+      defineGlobal('window', {
+        ...createMockWindow(),
+        innerWidth: undefined,
       });
 
       // Should not throw
@@ -1731,13 +1301,9 @@ describe('DeviceInfo', () => {
     });
 
     it('should handle window without devicePixelRatio', () => {
-      Object.defineProperty(globalThis, 'window', {
-        value: {
-          ...createMockWindow(),
-          devicePixelRatio: null,
-        },
-        writable: true,
-        configurable: true,
+      defineGlobal('window', {
+        ...createMockWindow(),
+        devicePixelRatio: null,
       });
 
       expect(DeviceInfo.pixelRatio()).toBe(1);

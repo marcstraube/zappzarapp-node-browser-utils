@@ -47,12 +47,14 @@ security-first design.
 
 ## Recipes
 
-| Recipe                                                  | Modules                                              |
-| ------------------------------------------------------- | ---------------------------------------------------- |
-| [Offline-First App](recipes/offline-first-app.md)       | WebSocket + OfflineQueue + Cache + IndexedDB         |
-| [Secure File Upload](recipes/secure-file-upload.md)     | RequestInterceptor + StreamProgress + Sanitize + CSP |
-| [Accessible Form](recipes/accessible-form.md)           | Form + Focus + Keyboard + A11y                       |
-| [Resilient API Client](recipes/resilient-api-client.md) | RequestInterceptor + RetryQueue + Cache (SWR)        |
+| Recipe                                                        | Modules                                              |
+| ------------------------------------------------------------- | ---------------------------------------------------- |
+| [Offline-First App](recipes/offline-first-app.md)             | WebSocket + OfflineQueue + Cache + IndexedDB         |
+| [Secure File Upload](recipes/secure-file-upload.md)           | RequestInterceptor + StreamProgress + Sanitize + CSP |
+| [Accessible Form](recipes/accessible-form.md)                 | Form + Focus + Keyboard + A11y                       |
+| [Resilient API Client](recipes/resilient-api-client.md)       | RequestInterceptor + RetryQueue + Cache (SWR)        |
+| [Real-Time Data Sync](recipes/real-time-data-sync.md)         | WebSocket + Cache + IndexedDB + Broadcast            |
+| [Progressive Enhancement](recipes/progressive-enhancement.md) | FeatureDetect + Network + Media                      |
 
 ## Guides
 
@@ -62,6 +64,7 @@ security-first design.
 | [Error Handling](error-handling.md)   | Throwing vs Result-based API patterns |
 | [Security Guide](security-guide.md)   | Detailed security considerations      |
 | [Glossary](glossary.md)               | Browser and web development terms     |
+| [Benchmarks](benchmarks.md)           | Bundle size and runtime benchmarks    |
 
 ## Installation
 
@@ -126,7 +129,7 @@ const debouncedSearch = debounce(handleSearch, 300);
 const throttledScroll = throttle(handleScroll, 100);
 
 // Feature detection
-if (FeatureDetect.hasClipboard()) {
+if (FeatureDetect.clipboard()) {
   await ClipboardManager.writeText('Hello!');
 }
 

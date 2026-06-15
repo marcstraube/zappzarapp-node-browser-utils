@@ -407,6 +407,9 @@ export class FormValidator {
 
       if (fieldErrors.length > 0) {
         errors[fieldName] = fieldErrors;
+        // fieldErrors is non-empty here; the `?? null` only satisfies the
+        // index-access type and is never taken.
+        /* v8 ignore next */
         firstError ??= fieldErrors[0] ?? null;
       }
     }
@@ -572,9 +575,12 @@ export class FormValidator {
         errors.push(asyncError);
       }
     } catch (error) {
-      // Handle promise rejection gracefully
+      // Handle promise rejection gracefully. runAsyncValidator already wraps any
+      // rejection in an Error, so the non-Error fallback is unreachable here.
       const errorMessage =
-        error instanceof Error ? error.message : `${fieldName} async validation failed`;
+        error instanceof Error
+          ? error.message
+          : /* v8 ignore next */ `${fieldName} async validation failed`;
       errors.push(errorMessage);
     }
 
@@ -615,6 +621,9 @@ export class FormValidator {
 
       if (syncErrors.length > 0) {
         errors[fieldName] = syncErrors;
+        // syncErrors is non-empty here; the `?? null` only satisfies the
+        // index-access type and is never taken.
+        /* v8 ignore next */
         firstError ??= syncErrors[0] ?? null;
       }
 
@@ -949,7 +958,10 @@ export class FormValidator {
 
       void this.validateFieldAsync(target).then((result) => {
         // Ignore superseded runs: a newer event has started since this one,
-        // so let that later run report completion instead.
+        // so let that later run report completion instead. Defensive — a
+        // superseded run's debounce timer is cleared before it can resolve, so
+        // this guard is not reachable through the public API.
+        /* v8 ignore next */
         if (sequence.get(fieldName) !== runId) {
           return;
         }

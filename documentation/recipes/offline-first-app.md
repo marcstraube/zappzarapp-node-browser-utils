@@ -121,14 +121,12 @@ const ws = WebSocketManager.create({
   url: 'wss://chat.example.com/ws',
   reconnect: true,
   maxReconnectAttempts: 20,
-  reconnectInterval: 1000,
-  maxReconnectInterval: 30_000,
+  reconnectDelay: 1000,
+  maxReconnectDelay: 30_000,
   queueMessages: true,
 });
 
-ws.onMessage(async (data) => {
-  const event = JSON.parse(data as string);
-
+ws.onMessage<{ type: string; payload: Message }>(async (event) => {
   if (event.type === 'message') {
     const msg: Message = event.payload;
 
@@ -201,8 +199,7 @@ async function createChatService() {
   });
 
   // Incoming server messages update local stores
-  ws.onMessage(async (data) => {
-    const event = JSON.parse(data as string);
+  ws.onMessage<{ type: string; payload: Message }>(async (event) => {
     if (event.type === 'message') {
       await db.put('messages', event.payload);
       await cache.delete(`channel:${event.payload.channel}`);
@@ -253,7 +250,7 @@ async function createChatService() {
 
     /** Tear down all resources. */
     destroy(): void {
-      ws.disconnect();
+      ws.close();
       queue.destroy();
       cache.destroy();
       db.close();
@@ -285,7 +282,7 @@ references:
 ```typescript
 function destroy(): void {
   // 1. Stop receiving data
-  ws.disconnect();
+  ws.close();
 
   // 2. Stop processing queued items
   queue.destroy();

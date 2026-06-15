@@ -1202,6 +1202,58 @@ describe('CacheManager', () => {
     it('should reject async delete with invalid key', async () => {
       await expect(cache.delete('')).rejects.toThrow();
     });
+
+    it('should tolerate duplicate tags when removing from the tag index (line 357)', () => {
+      // Duplicate tags collapse to a single Set entry, so the second pass over
+      // the same tag during removal finds no Set (the `if (keys)` false branch).
+      cache.setSync('key1', 'value1', { tags: ['dup', 'dup'] });
+
+      expect(cache.deleteSync('key1')).toBe(true);
+      expect(cache.has('key1')).toBe(false);
+    });
+
+    it('should wrap a non-Error thrown by setSync into an Error (line 545)', async () => {
+      const spy = vi.spyOn(cache, 'setSync').mockImplementation(() => {
+        throw 'string failure';
+      });
+
+      await expect(cache.set('key1', 'value1')).rejects.toThrow('string failure');
+
+      spy.mockRestore();
+    });
+
+    it('should wrap a non-Error thrown by deleteSync into an Error (line 607)', async () => {
+      const spy = vi.spyOn(cache, 'deleteSync').mockImplementation(() => {
+        throw 42;
+      });
+
+      await expect(cache.delete('key1')).rejects.toThrow('42');
+
+      spy.mockRestore();
+    });
+
+    it('should skip entries removed mid-iteration in invalidateByPattern (line 638)', async () => {
+      cache.setSync('a', '1');
+      cache.setSync('b', '2');
+
+      // A pattern whose test() removes an already-collected key simulates a
+      // concurrent deletion, so the second loop hits the `if (entry)` false branch.
+      const pattern = {
+        test: (key: string): boolean => {
+          if (key === 'b') {
+            cache.deleteSync('a');
+          }
+          return true;
+        },
+      } as unknown as RegExp;
+
+      const count = await cache.invalidateByPattern(pattern);
+
+      // Only 'b' is still present when the deletion loop runs.
+      expect(count).toBe(1);
+      expect(cache.has('a')).toBe(false);
+      expect(cache.has('b')).toBe(false);
+    });
   });
 
   describe('createResult', () => {

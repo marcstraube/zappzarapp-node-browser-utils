@@ -1606,6 +1606,13 @@ describe('RequestInterceptor', () => {
           ['192.167.1.1', 'not 192.168'],
           ['169.253.1.1', 'not 169.254'],
           ['1.2.3.4', 'generic public'],
+          // Public addresses that share the *second* octet of a private range
+          // but not the first. These guard the first-octet equality checks: a
+          // mutant that drops the `first === N` test would wrongly block these.
+          ['8.16.0.1', 'second octet 16 but not 172.x (private B range)'],
+          ['8.31.0.1', 'second octet 31 but not 172.x (private B range)'],
+          ['8.168.0.1', 'second octet 168 but not 192.x (private C)'],
+          ['8.254.0.1', 'second octet 254 but not 169.x (link-local)'],
         ])('should allow %s (%s)', async (ip) => {
           const api = RequestInterceptor.create({ blockPrivateIPs: true });
 
@@ -1668,6 +1675,11 @@ describe('RequestInterceptor', () => {
         it.each([
           ['example.com', 'hostname'],
           ['localhost', 'localhost string'],
+          // Looks like a private IP but has trailing non-digit characters, so it
+          // is NOT a valid IPv4 literal. Guards the trailing `$` anchor of the
+          // IPv4 pattern: without it the prefix "10.0.0.1" would match and the
+          // host would be wrongly blocked.
+          ['10.0.0.1x', 'private-IP prefix with trailing junk (not an IP literal)'],
         ])('should allow %s (%s)', async (host) => {
           const api = RequestInterceptor.create({ blockPrivateIPs: true });
 
@@ -1803,6 +1815,75 @@ describe('RequestInterceptor', () => {
         await api.fetch('https://api.example.com/users');
 
         expect(mockFetch).toHaveBeenCalled();
+
+        api.destroy();
+      });
+
+      it('should freeze a config whose metadata was cleared by middleware (line 657)', async () => {
+        const api = RequestInterceptor.create({ baseUrl: 'https://api.example.com' });
+
+        let captured: unknown = 'unset';
+        api.use({
+          onRequest: (config) => {
+            config.metadata = undefined;
+            return config;
+          },
+        });
+        api.use({
+          onError: (_error, config) => {
+            captured = config.metadata;
+          },
+        });
+
+        mockFetch.mockRejectedValueOnce(new Error('network down'));
+
+        await expect(api.fetch('/users')).rejects.toThrow();
+        expect(captured).toBeUndefined();
+
+        api.destroy();
+      });
+
+      it('should convert errors when the timeout is disabled (line 740)', async () => {
+        // timeout: 0 → createTimeout returns null → timeoutId stays null, so the
+        // error path skips clearTimeout.
+        const api = RequestInterceptor.create({ baseUrl: 'https://api.example.com', timeout: 0 });
+
+        mockFetch.mockRejectedValueOnce(new TypeError('connection refused'));
+
+        await expect(api.fetch('/users')).rejects.toThrow(RequestError);
+
+        api.destroy();
+      });
+
+      it('should fall back to the instance timeout when middleware clears it (line 748)', async () => {
+        // Middleware clears the per-request timeout, so error conversion falls
+        // back to the instance-level timeout via `config.timeout ?? options.timeout`.
+        const api = RequestInterceptor.create({
+          baseUrl: 'https://api.example.com',
+          timeout: 5000,
+        });
+        api.use({
+          onRequest: (config) => {
+            config.timeout = undefined;
+            return config;
+          },
+        });
+
+        mockFetch.mockRejectedValueOnce(new TypeError('connection refused'));
+
+        await expect(api.fetch('/users')).rejects.toThrow(RequestError);
+
+        api.destroy();
+      });
+
+      it('should be safe to call a middleware cleanup twice (line 816)', () => {
+        const api = RequestInterceptor.create({ baseUrl: 'https://api.example.com' });
+
+        const cleanup = api.use({ onRequest: (config) => config });
+        cleanup();
+
+        // Second call: the middleware is already gone, so indexOf returns -1.
+        expect(() => cleanup()).not.toThrow();
 
         api.destroy();
       });
