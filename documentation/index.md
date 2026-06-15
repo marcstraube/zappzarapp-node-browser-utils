@@ -129,7 +129,7 @@ const debouncedSearch = debounce(handleSearch, 300);
 const throttledScroll = throttle(handleScroll, 100);
 
 // Feature detection
-if (FeatureDetect.hasClipboard()) {
+if (FeatureDetect.clipboard()) {
   await ClipboardManager.writeText('Hello!');
 }
 
