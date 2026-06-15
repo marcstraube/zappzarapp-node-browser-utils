@@ -878,5 +878,50 @@ describe('FormUtils', () => {
 
       expect(FormUtils.isDirty(form)).toBe(true);
     });
+
+    it('should skip non-field elements in disable and enable (lines 176, 192)', () => {
+      // <output> is a listed form element but none of input/select/textarea/button,
+      // so it falls through the instanceof guard's final false branch.
+      const output = document.createElement('output');
+      output.name = 'result';
+      form.appendChild(output);
+      const input = addInput(form, 'text', 'name', 'John');
+
+      expect(() => FormUtils.disable(form)).not.toThrow();
+      expect(input.disabled).toBe(true);
+      expect('disabled' in output && output.disabled).toBeFalsy();
+
+      expect(() => FormUtils.enable(form)).not.toThrow();
+      expect(input.disabled).toBe(false);
+    });
+
+    it('should skip non-field elements when storing loading state (line 213)', () => {
+      const output = document.createElement('output');
+      output.name = 'result';
+      form.appendChild(output);
+      const input = addInput(form, 'text', 'name', 'John');
+
+      const restore = FormUtils.setLoading(form);
+      expect(input.disabled).toBe(true);
+
+      expect(() => restore()).not.toThrow();
+      expect(input.disabled).toBe(false);
+    });
+
+    it('should tolerate mixed RadioNodeList entries in setFieldValue (lines 97, 102)', () => {
+      // Same-named text input + button produce a RadioNodeList. The text input
+      // exercises the "neither checkbox nor radio" branch; the button exercises
+      // the "not an HTMLInputElement" branch.
+      const input = addInput(form, 'text', 'combo', 'initial');
+      addButton(form, 'button', 'Combo');
+      input.name = 'combo';
+      form.querySelector('button')!.setAttribute('name', 'combo');
+
+      expect(form.elements.namedItem('combo')).toBeInstanceOf(RadioNodeList);
+
+      expect(() => FormUtils.setFieldValue(form, 'combo', 'x')).not.toThrow();
+      // The setter only toggles checkbox/radio state, so the text value is untouched.
+      expect(input.value).toBe('initial');
+    });
   });
 });

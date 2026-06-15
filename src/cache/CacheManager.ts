@@ -364,6 +364,9 @@ export const CacheManager = {
     };
 
     const evictLru = (): void => {
+      // Defensive: evictLru only runs while making room in a full cache, so it
+      // is never reached on an empty cache.
+      /* v8 ignore next */
       if (cache.size === 0) return;
 
       // Find least recently used entry
@@ -377,8 +380,12 @@ export const CacheManager = {
         }
       }
 
+      // Both guards below are defensive: a non-empty cache always yields an
+      // lruKey, and that key is always still present.
+      /* v8 ignore next */
       if (lruKey !== undefined) {
         const entry = cache.get(lruKey);
+        /* v8 ignore next */
         if (entry) {
           removeFromTagIndex(lruKey, entry.meta.tags);
           cache.delete(lruKey);
@@ -389,6 +396,9 @@ export const CacheManager = {
     };
 
     const cleanup = (): void => {
+      // Defensive: destroy() clears the interval timer, so the scheduled cleanup
+      // never fires after the manager is destroyed.
+      /* v8 ignore next */
       if (destroyed) return;
 
       const keysToDelete: string[] = [];
@@ -400,6 +410,9 @@ export const CacheManager = {
 
       for (const key of keysToDelete) {
         const entry = cache.get(key);
+        // Defensive guard against an entry vanishing between collection and
+        // deletion (not reachable in single-threaded execution).
+        /* v8 ignore next */
         if (entry) {
           removeFromTagIndex(key, entry.meta.tags);
           cache.delete(key);
@@ -434,7 +447,9 @@ export const CacheManager = {
         try {
           validateKey(key);
         } catch (e) {
-          return Promise.reject(e instanceof Error ? e : new Error(String(e)));
+          // validateKey only ever throws CacheError, so the non-Error fallback
+          // is unreachable here.
+          return Promise.reject(e instanceof Error ? e : /* v8 ignore next */ new Error(String(e)));
         }
 
         const entry = cache.get(key);
@@ -658,6 +673,9 @@ export const CacheManager = {
 
         for (const key of keysToDelete) {
           const entry = cache.get(key);
+          // Defensive: the tag index stays in sync with the cache, so a tagged
+          // key always resolves to a live entry here.
+          /* v8 ignore next */
           if (entry) {
             removeFromTagIndex(key, entry.meta.tags);
             cache.delete(key);

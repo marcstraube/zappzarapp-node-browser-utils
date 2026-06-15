@@ -152,4 +152,11 @@ describe('validateContentType', () => {
     const headers = new Headers({ 'Content-Type': 'application/json' });
     expect(() => validateContentType(headers, 'Application/JSON')).not.toThrow();
   });
+
+  it('should fail closed when Content-Type carries only parameters', () => {
+    // Header has no MIME type before the ';', so the base type trims to '' and
+    // is treated as absent (fail closed).
+    const headers = new Headers({ 'Content-Type': '; charset=utf-8' });
+    expect(() => validateContentType(headers, 'application/json')).toThrow(RequestError);
+  });
 });

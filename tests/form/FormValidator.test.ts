@@ -1226,6 +1226,21 @@ describe('FormValidator', () => {
 
       expect(handler).not.toHaveBeenCalled();
     });
+
+    it('should ignore events from non-field targets (line 866)', () => {
+      const div = document.createElement('div');
+      form.appendChild(div);
+
+      const handler = vi.fn();
+      const validator = FormValidator.create({ name: { required: true } });
+
+      validator.onFieldChange(form, handler, { validateOn: 'blur' });
+
+      // A <div> is not an input/select/textarea, so the guard's false branch runs.
+      div.dispatchEvent(new Event('blur', { bubbles: true }));
+
+      expect(handler).not.toHaveBeenCalled();
+    });
   });
 
   // ===========================================================================
@@ -1700,6 +1715,76 @@ describe('FormValidator', () => {
         expect(asyncValidator).toHaveBeenCalledOnce();
         expect(asyncValidator).toHaveBeenCalledWith('jane', 'username', form);
       });
+
+      it('should ignore the resolution of a superseded validation run (line 708)', async () => {
+        const input = addInput(form, 'text', 'username', 'first');
+
+        let resolveFirst!: (value: string | null) => void;
+        let callCount = 0;
+        const asyncValidator = vi.fn().mockImplementation(() => {
+          callCount += 1;
+          if (callCount === 1) {
+            return new Promise<string | null>((resolve) => {
+              resolveFirst = resolve;
+            });
+          }
+          return Promise.resolve(null);
+        });
+        const validator = FormValidator.create({
+          username: { asyncCustom: asyncValidator, asyncDebounceMs: 100 },
+        });
+
+        // First run: let the debounce fire so validator #1 is in-flight and owns
+        // the pending slot. We deliberately do not await it.
+        void validator.validateFieldAsync(input);
+        await vi.advanceTimersByTimeAsync(100);
+
+        // Second run supersedes: its validator resolves and clears the pending slot.
+        input.value = 'second';
+        const second = validator.validateFieldAsync(input);
+        await vi.advanceTimersByTimeAsync(100);
+        await second;
+
+        // Resolving the first (now superseded) validator hits the guard's false
+        // branch: the pending slot no longer points at this run, so it is ignored.
+        resolveFirst(null);
+        await Promise.resolve();
+
+        expect(asyncValidator).toHaveBeenCalledTimes(2);
+      });
+
+      it('should ignore the rejection of a superseded validation run (line 714)', async () => {
+        const input = addInput(form, 'text', 'username', 'first');
+
+        let rejectFirst!: (reason: unknown) => void;
+        let callCount = 0;
+        const asyncValidator = vi.fn().mockImplementation(() => {
+          callCount += 1;
+          if (callCount === 1) {
+            return new Promise<string | null>((_resolve, reject) => {
+              rejectFirst = reject;
+            });
+          }
+          return Promise.resolve(null);
+        });
+        const validator = FormValidator.create({
+          username: { asyncCustom: asyncValidator, asyncDebounceMs: 100 },
+        });
+
+        void validator.validateFieldAsync(input);
+        await vi.advanceTimersByTimeAsync(100);
+
+        input.value = 'second';
+        const second = validator.validateFieldAsync(input);
+        await vi.advanceTimersByTimeAsync(100);
+        await second;
+
+        // The superseded run rejects; the guard's false branch swallows it.
+        rejectFirst(new Error('superseded failure'));
+        await Promise.resolve();
+
+        expect(asyncValidator).toHaveBeenCalledTimes(2);
+      });
     });
 
     describe('validateFormAsync', () => {
@@ -2039,6 +2124,23 @@ describe('FormValidator', () => {
         cleanup();
 
         expect(removeEventListenerSpy).toHaveBeenCalledWith('input', expect.any(Function));
+      });
+
+      it('should ignore events from non-field targets (lines 927-929)', () => {
+        const div = document.createElement('div');
+        form.appendChild(div);
+
+        const handler = vi.fn();
+        const onValidationStart = vi.fn();
+        const validator = FormValidator.create({ name: { asyncCustom: vi.fn() } });
+
+        validator.onFieldChangeAsync(form, handler, { onValidationStart });
+
+        // Target is a <div>: the early-return guard fires before any async work.
+        div.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(onValidationStart).not.toHaveBeenCalled();
+        expect(handler).not.toHaveBeenCalled();
       });
 
       it('should call handler with async result and fire loading callbacks', async () => {

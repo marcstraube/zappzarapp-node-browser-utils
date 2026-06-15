@@ -1062,4 +1062,78 @@ describe('FormSerializer', () => {
       spy.mockRestore();
     });
   });
+
+  describe('branch coverage', () => {
+    it('should ignore non-field elements when collecting values (line 59)', () => {
+      addInput(form, 'text', 'name', 'John');
+      const button = document.createElement('button');
+      button.name = 'action';
+      button.value = 'go';
+      form.appendChild(button);
+
+      // The button is neither input/select/textarea, so collectElementValue skips it.
+      expect(FormSerializer.toObject(form)).toEqual({ name: 'John' });
+    });
+
+    it('should ignore empty file inputs (line 85)', () => {
+      addInput(form, 'text', 'name', 'John');
+      addInput(form, 'file', 'avatar', '');
+
+      // An empty file input contributes nothing.
+      expect(FormSerializer.toObject(form)).toEqual({ name: 'John' });
+    });
+
+    it('should skip File entries inside arrays in toQueryString (line 183)', () => {
+      const mockFile = new File(['x'], 'a.txt');
+      const spy = vi.spyOn(FormSerializer, 'toObject').mockReturnValue({
+        items: [mockFile, 'keep'] as unknown as string[],
+      });
+
+      expect(FormSerializer.toQueryString(form)).toBe('items=keep');
+
+      spy.mockRestore();
+    });
+
+    it('should skip standalone File values in toQueryString (line 187)', () => {
+      const mockFile = new File(['x'], 'a.txt');
+      const spy = vi.spyOn(FormSerializer, 'toObject').mockReturnValue({
+        name: 'John',
+        avatar: mockFile as unknown as string,
+      });
+
+      expect(FormSerializer.toQueryString(form)).toBe('name=John');
+
+      spy.mockRestore();
+    });
+
+    it('should skip non-field elements in clear (line 261)', () => {
+      const input = addInput(form, 'text', 'name', 'John');
+      const button = document.createElement('button');
+      button.textContent = 'Submit';
+      form.appendChild(button);
+
+      expect(() => FormSerializer.clear(form)).not.toThrow();
+      expect(input.value).toBe('');
+      expect(button.textContent).toBe('Submit');
+    });
+
+    it('should skip non-input entries in a RadioNodeList during fromObject (line 277)', () => {
+      const input = addInput(form, 'text', 'combo', 'initial');
+      const button = document.createElement('button');
+      button.setAttribute('name', 'combo');
+      form.appendChild(button);
+      input.name = 'combo';
+
+      expect(form.elements.namedItem('combo')).toBeInstanceOf(RadioNodeList);
+      expect(() => FormSerializer.fromObject(form, { combo: 'x' })).not.toThrow();
+    });
+
+    it('should ignore non-field single elements in fromObject (line 316)', () => {
+      const button = document.createElement('button');
+      button.setAttribute('name', 'action');
+      form.appendChild(button);
+
+      expect(() => FormSerializer.fromObject(form, { action: 'x' })).not.toThrow();
+    });
+  });
 });

@@ -147,8 +147,8 @@ export const FormSerializer = {
    */
   normalizeValues(values: FormDataEntryValue[]): FormValue {
     if (values.length === 1) {
-      const value = values[0]!;
-      return value instanceof File ? value : value;
+      // A single value is returned as-is (string or File).
+      return values[0]!;
     }
 
     // Multiple values - check if all are files
@@ -232,7 +232,8 @@ export const FormSerializer = {
       if (elements instanceof RadioNodeList) {
         // Multiple elements with same name (radio buttons or checkboxes)
         FormSerializer.setRadioNodeListValue(elements, value);
-      } else if (elements instanceof HTMLElement) {
+      } else {
+        // Single named element
         FormSerializer.setElementValue(elements, value);
       }
     }
@@ -294,7 +295,7 @@ export const FormSerializer = {
    * Set value on a single form element.
    * @internal
    */
-  setElementValue(element: HTMLElement, value: unknown): void {
+  setElementValue(element: Element, value: unknown): void {
     if (element instanceof HTMLInputElement) {
       if (element.type === 'checkbox') {
         element.checked = Boolean(value);

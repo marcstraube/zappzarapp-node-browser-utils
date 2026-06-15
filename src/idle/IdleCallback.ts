@@ -195,6 +195,9 @@ export const IdleCallback = {
     return () => {
       cancelled = true;
       queue.length = 0;
+      // Defensive: cancelCurrent is assigned synchronously below before this
+      // cleanup can run, so it is never null here.
+      /* v8 ignore next */
       if (cancelCurrent !== null) {
         cancelCurrent();
       }
@@ -243,6 +246,9 @@ export const IdleCallback = {
           }
         }
 
+        // Defensive: the loop only exits normally once the queue is drained
+        // (the cancelled path returns early above), so this is always true.
+        /* v8 ignore next */
         if (queue.length === 0) {
           resolve();
         }
@@ -306,6 +312,9 @@ export const IdleCallback = {
       },
       flush: (): void => {
         if (scheduled) {
+          // Defensive: scheduled is only true after schedule() assigned cancelFn,
+          // so it is never null in this branch.
+          /* v8 ignore next */
           if (cancelFn !== null) {
             cancelFn();
           }
