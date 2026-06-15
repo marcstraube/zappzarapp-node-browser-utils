@@ -83,7 +83,24 @@ Suppressions are the last resort. If unavoidable:
 
 Format: `<type>(<scope>): <description>`
 
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `security`
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`,
+`ci`, `build`, `revert`, `security` (enforced by `commitlint.config.js`).
+
+### Scope
+
+The scope is the **module or area the change is localized to** — e.g.
+`feat(form)`, `docs(websocket)`, `refactor(device)`, `fix(ci)`,
+`test(integration)`. Omit the scope only for repo-wide / cross-cutting changes
+that don't belong to a single module (e.g. `feat!: require Node.js 22+`,
+`docs: add cross-module recipe guides`, `chore: packaging polish`).
+
+- For test changes, scope by the **module under test** (`test(cache)`,
+  `refactor(device)`) — not by the literal word `tests`.
+- Choose the type by **intent**: `test:` adds or changes test coverage;
+  `refactor:` restructures code (including test code) without changing behavior.
+
+This convention also applies to **issue and PR titles** — mirror the
+`type(scope)` the eventual commit will carry.
 
 GPG-signed commits are recommended but not required.
 
