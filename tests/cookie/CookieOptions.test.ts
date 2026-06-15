@@ -646,4 +646,63 @@ describe('CookieOptions', () => {
       expect(options.expires).toBeUndefined();
     });
   });
+
+  // ===========================================================================
+  // Mutation Hardening
+  // ===========================================================================
+
+  describe('Mutation Hardening', () => {
+    /** Run a factory expected to fail and return its ValidationError. */
+    function captureValidationError(fn: () => unknown): ValidationError {
+      try {
+        fn();
+      } catch (error) {
+        if (error instanceof ValidationError) {
+          return error;
+        }
+        throw error;
+      }
+      throw new Error('expected a ValidationError to be thrown');
+    }
+
+    it('should serialize attributes without any stray leading part', () => {
+      const options = CookieOptions.create({
+        name: 'c',
+        path: '/',
+        secure: false,
+        sameSite: 'Strict',
+      });
+
+      // Pins the exact output so a seeded extra array element is caught.
+      expect(options.toAttributeString()).toBe('path=/; samesite=Strict');
+    });
+
+    it('should tag a non-slash path error with field "cookiePath"', () => {
+      const error = captureValidationError(() =>
+        CookieOptions.create({ name: 'c', path: 'no-slash' })
+      );
+
+      expect(error.field).toBe('cookiePath');
+    });
+
+    it('should tag a forbidden-char path error with field "cookiePath"', () => {
+      const error = captureValidationError(() => CookieOptions.create({ name: 'c', path: '/a;b' }));
+
+      expect(error.field).toBe('cookiePath');
+    });
+
+    it('should tag an empty-domain error with field "cookieDomain"', () => {
+      const error = captureValidationError(() => CookieOptions.create({ name: 'c', domain: '' }));
+
+      expect(error.field).toBe('cookieDomain');
+    });
+
+    it('should tag a forbidden-char domain error with field "cookieDomain"', () => {
+      const error = captureValidationError(() =>
+        CookieOptions.create({ name: 'c', domain: 'a;b' })
+      );
+
+      expect(error.field).toBe('cookieDomain');
+    });
+  });
 });
