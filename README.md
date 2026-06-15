@@ -207,7 +207,8 @@ const cleanup = IntersectionObserverWrapper.lazyLoad(
 
 **Guides:** [Browser Support](documentation/browser-support.md) ·
 [Error Handling](documentation/error-handling.md) ·
-[Security Guide](documentation/security-guide.md)
+[Security Guide](documentation/security-guide.md) ·
+[Benchmarks](documentation/benchmarks.md)
 
 Generate API docs locally with `pnpm run docs`.
 
