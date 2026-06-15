@@ -165,29 +165,21 @@
  * ```
  */
 import { WebSocketError, type WebSocketErrorCode, type CleanupFn } from '../core/index.js';
+import type { BinaryData, BinaryType, ConnectionState } from './types.js';
+import type { Transport, TransportKind } from './Transport.js';
+import { WebSocketTransport } from './WebSocketTransport.js';
+import { SseTransport } from './SseTransport.js';
+import { PollingTransport } from './PollingTransport.js';
 
 export { WebSocketError };
 export type { WebSocketErrorCode };
+export type { BinaryData, BinaryType, ConnectionState };
+export type { TransportKind };
 
 /**
- * WebSocket connection states.
+ * Transport fallback strategy when WebSocket is unavailable or fails to connect.
  */
-export type ConnectionState =
-  | 'connecting'
-  | 'connected'
-  | 'disconnecting'
-  | 'disconnected'
-  | 'reconnecting';
-
-/**
- * Binary type for WebSocket.
- */
-export type BinaryType = 'blob' | 'arraybuffer';
-
-/**
- * Binary data types that can be sent via WebSocket.
- */
-export type BinaryData = ArrayBuffer | ArrayBufferView | Blob;
+export type FallbackStrategy = 'polling' | 'sse' | 'none';
 
 /**
  * WebSocket manager configuration.
@@ -217,6 +209,24 @@ export interface WebSocketConfig {
   readonly maxQueueSize?: number;
   /** Binary type for receiving binary data ('blob' or 'arraybuffer') */
   readonly binaryType?: BinaryType;
+  /**
+   * Fallback transport when WebSocket is unavailable or fails to connect
+   * (default: 'none'). Requires {@link WebSocketConfig.fallbackUrl}.
+   */
+  readonly fallback?: FallbackStrategy;
+  /**
+   * HTTP(S) endpoint for the fallback transport (required when `fallback` is not
+   * 'none'). Receives server-pushed messages: an SSE (`text/event-stream`) stream
+   * for `'sse'`, or a polled GET resource for `'polling'`.
+   */
+  readonly fallbackUrl?: string;
+  /**
+   * HTTP(S) endpoint the fallback transport POSTs outbound messages to
+   * (default: {@link WebSocketConfig.fallbackUrl}).
+   */
+  readonly fallbackSendUrl?: string;
+  /** Polling interval in ms for the `'polling'` fallback (default: 3000). */
+  readonly pollInterval?: number;
 }
 
 /**
@@ -229,6 +239,8 @@ export interface WebSocketInstance {
   readonly url: string;
   /** Number of reconnection attempts */
   readonly reconnectAttempts: number;
+  /** The transport currently backing the connection, or null before connecting */
+  readonly activeTransport: TransportKind | null;
 
   /** Connect to the WebSocket server */
   connect(): void;
@@ -271,7 +283,21 @@ const DEFAULT_CONFIG = {
   queueMessages: true,
   maxQueueSize: 100,
   binaryType: 'blob',
+  fallback: 'none',
+  pollInterval: 3000,
 } as const satisfies Partial<WebSocketConfig>;
+
+/**
+ * Validate an HTTP(S) URL used for a fallback transport endpoint.
+ */
+const isHttpUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
 
 export const WebSocketManager = {
   /**
@@ -386,25 +412,53 @@ export const WebSocketManager = {
    *   }
    * });
    * ```
+   *
+   * @example With an SSE fallback when WebSocket is blocked
+   * ```TypeScript
+   * // Same event API regardless of transport. Requires server endpoints matching
+   * // the fallback contract (see the websocket documentation).
+   * const ws = WebSocketManager.create({
+   *   url: 'wss://api.example.com/ws',
+   *   fallback: 'sse',
+   *   fallbackUrl: 'https://api.example.com/sse',
+   *   fallbackSendUrl: 'https://api.example.com/send',
+   * });
+   *
+   * ws.onMessage((data) => console.log('Received via', ws.activeTransport, data));
+   * ws.connect();
+   * ```
    */
   create(config: WebSocketConfig): WebSocketInstance {
-    if (!WebSocketManager.isSupported()) {
-      throw WebSocketError.notSupported();
-    }
-
     if (!WebSocketManager.isValidUrl(config.url)) {
       throw WebSocketError.invalidUrl(config.url);
     }
 
     const options = { ...DEFAULT_CONFIG, ...config };
 
-    let ws: WebSocket | null = null;
+    if (options.fallback !== 'none') {
+      if (config.fallbackUrl === undefined || config.fallbackUrl.length === 0) {
+        throw WebSocketError.fallbackUrlRequired(options.fallback);
+      }
+      if (!isHttpUrl(config.fallbackUrl)) {
+        throw WebSocketError.invalidUrl(config.fallbackUrl);
+      }
+      if (config.fallbackSendUrl !== undefined && !isHttpUrl(config.fallbackSendUrl)) {
+        throw WebSocketError.invalidUrl(config.fallbackSendUrl);
+      }
+    } else if (!WebSocketManager.isSupported()) {
+      // No fallback configured and WebSocket is unavailable.
+      throw WebSocketError.notSupported();
+    }
+
+    let activeTransport: Transport | null = null;
     let state: ConnectionState = 'disconnected';
     let reconnectAttempts = 0;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-    let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
     const messageQueue: unknown[] = [];
     let intentionalClose = false;
+    let hasFallenBack = false;
+    let wsEverConnected = false;
     let currentBinaryType: BinaryType = options.binaryType;
 
     // Event handlers
@@ -423,49 +477,90 @@ export const WebSocketManager = {
       }
     };
 
-    const clearTimers = (): void => {
+    const stopHeartbeat = (): void => {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+    };
+
+    const clearReconnectTimer = (): void => {
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
         reconnectTimeout = null;
       }
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-        heartbeatInterval = null;
-      }
     };
 
+    const clearTimers = (): void => {
+      clearReconnectTimer();
+      stopHeartbeat();
+    };
+
+    /**
+     * Check if data is binary (ArrayBuffer or Blob).
+     */
+    const isBinaryData = (data: unknown): data is ArrayBuffer | Blob => {
+      return data instanceof ArrayBuffer || data instanceof Blob;
+    };
+
+    // Heartbeat is a WebSocket-only concern: on polling the poll itself is the
+    // liveness check, and SSE streams are server-driven. Sending heartbeats over a
+    // fallback would just generate surprise POST traffic.
     const startHeartbeat = (): void => {
       if (options.heartbeatInterval <= 0) return;
+      if (activeTransport?.kind !== 'websocket') return;
 
-      heartbeatInterval = setInterval(() => {
-        if (ws?.readyState === WebSocket.OPEN) {
-          try {
-            const message =
-              typeof options.heartbeatMessage === 'function'
-                ? options.heartbeatMessage()
-                : (options.heartbeatMessage ?? 'ping');
+      heartbeatTimer = setInterval(() => {
+        if (state !== 'connected' || !activeTransport) return;
 
-            ws.send(typeof message === 'string' ? message : JSON.stringify(message));
-          } catch (e) {
-            errorHandlers.forEach((handler) =>
-              handler(e instanceof Event ? e : new Event('error'))
-            );
-          }
+        try {
+          const message =
+            typeof options.heartbeatMessage === 'function'
+              ? options.heartbeatMessage()
+              : (options.heartbeatMessage ?? 'ping');
+
+          activeTransport.send(typeof message === 'string' ? message : JSON.stringify(message));
+        } catch (e) {
+          errorHandlers.forEach((handler) => handler(e instanceof Event ? e : new Event('error')));
         }
       }, options.heartbeatInterval);
     };
 
     const flushQueue = (): void => {
-      while (messageQueue.length > 0 && ws?.readyState === WebSocket.OPEN) {
+      while (messageQueue.length > 0 && state === 'connected' && activeTransport) {
         const data = messageQueue.shift();
-        try {
-          ws.send(typeof data === 'string' ? data : JSON.stringify(data));
-        } catch {
+        const serialized = typeof data === 'string' ? data : JSON.stringify(data);
+        if (!activeTransport.send(serialized)) {
           // Put message back in queue
           messageQueue.unshift(data);
           break;
         }
       }
+    };
+
+    const handleMessage = (data: unknown, event?: MessageEvent): void => {
+      // Handle binary data (WebSocket only).
+      if (isBinaryData(data)) {
+        binaryMessageHandlers.forEach((handler) => handler(data));
+        const messageEvent = event ?? new MessageEvent('message', { data });
+        messageHandlers.forEach((handler) => handler(data, messageEvent));
+        return;
+      }
+
+      // Try to parse JSON for string messages.
+      let parsedData: unknown = data;
+      if (typeof data === 'string') {
+        try {
+          parsedData = JSON.parse(data);
+        } catch {
+          // Keep as string
+        }
+      }
+
+      // Fallback transports without a native MessageEvent get a synthetic one so the
+      // event-based API stays uniform across transports.
+      const messageEvent = event ?? new MessageEvent('message', { data });
+      messageHandlers.forEach((handler) => handler(parsedData, messageEvent));
     };
 
     const scheduleReconnect = (): void => {
@@ -489,74 +584,98 @@ export const WebSocketManager = {
       }, delay);
     };
 
-    /**
-     * Check if data is binary (ArrayBuffer or Blob).
-     */
-    const isBinaryData = (data: unknown): data is ArrayBuffer | Blob => {
-      return data instanceof ArrayBuffer || data instanceof Blob;
+    // Fall back only while WebSocket has never connected: once it has worked, drops are
+    // treated as transient and reconnect stays on WebSocket.
+    const canFallback = (): boolean =>
+      options.fallback !== 'none' &&
+      !hasFallenBack &&
+      !wsEverConnected &&
+      activeTransport?.kind === 'websocket';
+
+    const createFallbackTransport = (): Transport => {
+      const receiveUrl = config.fallbackUrl as string;
+      const sendUrl = config.fallbackSendUrl ?? receiveUrl;
+      return options.fallback === 'sse'
+        ? new SseTransport(receiveUrl, sendUrl)
+        : new PollingTransport(receiveUrl, sendUrl, options.pollInterval);
+    };
+
+    const createInitialTransport = (): Transport => {
+      if (WebSocketManager.isSupported()) {
+        return new WebSocketTransport(config.url, config.protocols, currentBinaryType);
+      }
+      // WebSocket is unavailable but a fallback is configured (validated above).
+      hasFallenBack = true;
+      return createFallbackTransport();
+    };
+
+    const wireTransport = (transport: Transport): void => {
+      transport.onOpen = (): void => {
+        if (transport.kind === 'websocket') wsEverConnected = true;
+        setState('connected');
+        reconnectAttempts = 0;
+        startHeartbeat();
+        flushQueue();
+        openHandlers.forEach((handler) => handler());
+      };
+
+      transport.onClose = (code: number, reason: string): void => {
+        stopHeartbeat();
+        closeHandlers.forEach((handler) => handler(code, reason));
+
+        if (intentionalClose) {
+          setState('disconnected');
+          return;
+        }
+
+        if (canFallback()) {
+          switchToFallback();
+          return;
+        }
+
+        scheduleReconnect();
+      };
+
+      transport.onError = (event: Event): void => {
+        errorHandlers.forEach((handler) => handler(event));
+      };
+
+      transport.onMessage = handleMessage;
+    };
+
+    const switchToFallback = (): void => {
+      hasFallenBack = true;
+      stopHeartbeat();
+      activeTransport = createFallbackTransport();
+      wireTransport(activeTransport);
+      reconnectAttempts = 0;
+      setState('connecting');
+      activeTransport.connect();
     };
 
     const connect = (): void => {
-      if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) {
+      if (state === 'connecting' || state === 'connected') {
         return;
       }
 
       intentionalClose = false;
+
+      if (!activeTransport) {
+        activeTransport = createInitialTransport();
+        wireTransport(activeTransport);
+      }
+
       setState('connecting');
 
       try {
-        ws = new WebSocket(config.url, config.protocols);
-        ws.binaryType = currentBinaryType;
-
-        ws.onopen = (): void => {
-          setState('connected');
-          reconnectAttempts = 0;
-          startHeartbeat();
-          flushQueue();
-          openHandlers.forEach((handler) => handler());
-        };
-
-        ws.onclose = (event): void => {
-          clearTimers();
-          closeHandlers.forEach((handler) => handler(event.code, event.reason));
-
-          if (!intentionalClose) {
-            scheduleReconnect();
-          } else {
-            setState('disconnected');
-          }
-        };
-
-        ws.onerror = (event): void => {
-          errorHandlers.forEach((handler) => handler(event));
-        };
-
-        ws.onmessage = (event): void => {
-          const data: unknown = event.data;
-
-          // Handle binary data
-          if (isBinaryData(data)) {
-            binaryMessageHandlers.forEach((handler) => handler(data));
-            // Also pass to regular message handlers
-            messageHandlers.forEach((handler) => handler(data, event));
-            return;
-          }
-
-          // Try to parse JSON for string messages
-          let parsedData: unknown = data;
-          if (typeof data === 'string') {
-            try {
-              parsedData = JSON.parse(data);
-            } catch {
-              // Keep as string
-            }
-          }
-
-          messageHandlers.forEach((handler) => handler(parsedData, event));
-        };
+        activeTransport.connect();
       } catch (e) {
+        if (canFallback()) {
+          switchToFallback();
+          return;
+        }
         setState('disconnected');
-        throw WebSocketError.connectionFailed(config.url, e);
+        throw e;
       }
     };
 
@@ -573,16 +692,16 @@ export const WebSocketManager = {
         return reconnectAttempts;
       },
 
+      get activeTransport(): TransportKind | null {
+        return activeTransport ? activeTransport.kind : null;
+      },
+
       connect,
 
       send(data: unknown): boolean {
-        if (ws?.readyState === WebSocket.OPEN) {
-          try {
-            ws.send(typeof data === 'string' ? data : JSON.stringify(data));
-            return true;
-          } catch {
-            return false;
-          }
+        if (state === 'connected' && activeTransport) {
+          const serialized = typeof data === 'string' ? data : JSON.stringify(data);
+          return activeTransport.send(serialized);
         }
 
         // Queue message if enabled
@@ -595,22 +714,12 @@ export const WebSocketManager = {
       },
 
       sendBinary(data: BinaryData): boolean {
-        if (ws?.readyState === WebSocket.OPEN) {
-          try {
-            ws.send(data as string | ArrayBuffer | Blob);
-            return true;
-          } catch {
-            return false;
-          }
-        }
-        return false;
+        return activeTransport?.sendBinary(data) ?? false;
       },
 
       setBinaryType(type: BinaryType): void {
         currentBinaryType = type;
-        if (ws) {
-          ws.binaryType = type;
-        }
+        activeTransport?.setBinaryType(type);
       },
 
       getBinaryType(): BinaryType {
@@ -622,9 +731,9 @@ export const WebSocketManager = {
         clearTimers();
         messageQueue.length = 0;
 
-        if (ws && ws.readyState !== WebSocket.CLOSED) {
+        if (activeTransport && state !== 'disconnected') {
           setState('disconnecting');
-          ws.close(code, reason);
+          activeTransport.close(code, reason);
         } else {
           setState('disconnected');
         }
