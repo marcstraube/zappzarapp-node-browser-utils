@@ -1319,4 +1319,278 @@ describe('EncryptedStorage', () => {
       expect(EncryptionError.storageUnavailable('test reason').message).toContain('test reason');
     });
   });
+
+  // ===========================================================================
+  // Mutation Hardening
+  //
+  // Targeted tests that assert *observable distinctions* (error codes, fields,
+  // success vs. failure) rather than just error types, so that logic mutations
+  // in validation, entry-format checks, quota detection, and prefix filtering
+  // are detected.
+  // ===========================================================================
+
+  describe('Mutation Hardening', () => {
+    describe('password length validation', () => {
+      it('should reject a short password even when it has enough character classes', async () => {
+        // 'Ab1' is only 3 chars (< 12) but already has 3 character classes, so
+        // the rejection must come from the length check, not the complexity check.
+        await expect(
+          EncryptedStorage.create({
+            password: 'Ab1',
+            minCharacterClasses: 1,
+            storage: mockStorage,
+          })
+        ).rejects.toMatchObject({ field: 'password' });
+      });
+    });
+
+    describe('minCharacterClasses range validation', () => {
+      it('should report minCharacterClasses (not password) as the invalid field when above 4', async () => {
+        // minCharacterClasses = 5 must be flagged by the range check itself
+        // (field 'minCharacterClasses'), not fall through to the complexity
+        // check (field 'password').
+        await expect(
+          EncryptedStorage.create({
+            password: 'Password123!',
+            minCharacterClasses: 5,
+            storage: mockStorage,
+          })
+        ).rejects.toMatchObject({ field: 'minCharacterClasses' });
+      });
+    });
+
+    describe('character class counting', () => {
+      it('should count lowercase as its own class (reject when only upper+digit present)', async () => {
+        // 'PASSWORD1234' has uppercase + digits = 2 classes and NO lowercase.
+        // Requiring 3 classes must fail; if lowercase were always counted the
+        // count would wrongly reach 3 and creation would succeed.
+        await expect(
+          EncryptedStorage.create({
+            password: 'PASSWORD1234',
+            minCharacterClasses: 3,
+            storage: mockStorage,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+    });
+
+    describe('iterations boundary', () => {
+      it('should accept iterations exactly equal to the minimum', async () => {
+        // Boundary: iterations === MIN_ITERATIONS (10_000) must be allowed,
+        // distinguishing `< MIN` from `<= MIN`.
+        const storage = await EncryptedStorage.create({
+          password: 'secure-password-123',
+          iterations: 10000,
+          storage: mockStorage,
+        });
+
+        expect(storage.stats().iterations).toBe(10000);
+        storage.destroy();
+      });
+    });
+
+    describe('isValidEntry / get error codes', () => {
+      async function expectGetCode(
+        prefix: string,
+        rawValue: string,
+        expectedCode: string
+      ): Promise<void> {
+        const storage = await EncryptedStorage.create({
+          password: 'secure-password-123',
+          prefix,
+          storage: mockStorage,
+        });
+        mockStorage.setItem(`${prefix}.entry`, rawValue);
+
+        let caught: unknown = null;
+        try {
+          await storage.get('entry');
+        } catch (error) {
+          caught = error;
+        } finally {
+          storage.destroy();
+        }
+
+        expect(caught).toBeInstanceOf(EncryptionError);
+        expect((caught as EncryptionError).code).toBe(expectedCode);
+      }
+
+      it('should report INVALID_DATA_FORMAT (not DECRYPTION_FAILED) for a null entry', async () => {
+        await expectGetCode('mhNull', 'null', 'INVALID_DATA_FORMAT');
+      });
+
+      it('should report INVALID_DATA_FORMAT for a primitive string entry', async () => {
+        await expectGetCode('mhString', '"just a string"', 'INVALID_DATA_FORMAT');
+      });
+
+      it('should report INVALID_DATA_FORMAT for an entry missing iv', async () => {
+        await expectGetCode(
+          'mhNoIv',
+          JSON.stringify({ data: 'b', timestamp: 0 }),
+          'INVALID_DATA_FORMAT'
+        );
+      });
+
+      it('should report INVALID_DATA_FORMAT for an entry missing data', async () => {
+        await expectGetCode(
+          'mhNoData',
+          JSON.stringify({ iv: 'a', timestamp: 0 }),
+          'INVALID_DATA_FORMAT'
+        );
+      });
+
+      it('should report INVALID_DATA_FORMAT for an entry missing timestamp', async () => {
+        await expectGetCode(
+          'mhNoTs',
+          JSON.stringify({ iv: 'a', data: 'b' }),
+          'INVALID_DATA_FORMAT'
+        );
+      });
+
+      it('should report INVALID_DATA_FORMAT for an entry whose timestamp is not a number', async () => {
+        await expectGetCode(
+          'mhBadTs',
+          JSON.stringify({ iv: 'a', data: 'b', timestamp: '0' }),
+          'INVALID_DATA_FORMAT'
+        );
+      });
+    });
+
+    describe('isQuotaError detection', () => {
+      async function setItemThrows(thrown: unknown): Promise<EncryptionError> {
+        const quotaStorage = createMockLocalStorage();
+        vi.spyOn(quotaStorage, 'setItem').mockImplementation((key) => {
+          if (!key.endsWith('__salt__')) {
+            throw thrown;
+          }
+        });
+
+        const storage = await EncryptedStorage.create({
+          password: 'secure-password-123',
+          storage: quotaStorage,
+        });
+
+        let caught: unknown = null;
+        try {
+          await storage.set('key', 'value');
+        } catch (error) {
+          caught = error;
+        } finally {
+          storage.destroy();
+        }
+
+        expect(caught).toBeInstanceOf(EncryptionError);
+        return caught as EncryptionError;
+      }
+
+      it('should detect quota via QuotaExceededError name even without "quota" in the message', async () => {
+        const error = new Error('disk is full');
+        error.name = 'QuotaExceededError';
+
+        const result = await setItemThrows(error);
+        expect(result.code).toBe('STORAGE_QUOTA_EXCEEDED');
+      });
+
+      it('should detect quota via NS_ERROR_DOM_QUOTA_REACHED name even without "quota" in the message', async () => {
+        const error = new Error('storage is full');
+        error.name = 'NS_ERROR_DOM_QUOTA_REACHED';
+
+        const result = await setItemThrows(error);
+        expect(result.code).toBe('STORAGE_QUOTA_EXCEEDED');
+      });
+
+      it('should detect quota via the message when the name does not match', async () => {
+        const error = new Error('The quota has been exceeded');
+        error.name = 'SomeOtherError';
+
+        const result = await setItemThrows(error);
+        expect(result.code).toBe('STORAGE_QUOTA_EXCEEDED');
+      });
+
+      it('should NOT treat a non-Error quota-shaped object as a quota error', async () => {
+        // A plain object that quacks like a quota error must be rejected by the
+        // `instanceof Error` guard and surface as a generic ENCRYPTION_FAILED.
+        const result = await setItemThrows({
+          name: 'QuotaExceededError',
+          message: 'quota exceeded',
+        });
+        expect(result.code).toBe('ENCRYPTION_FAILED');
+      });
+    });
+
+    describe('clear / keys prefix and null-key filtering', () => {
+      /**
+       * Build a storage whose `key(index)` returns `null` for one in-range
+       * index, simulating a sparse/contractually-odd Storage. Exercises the
+       * `key !== null` guards in clear() and keys().
+       */
+      function createNullHoleStorage(entries: ReadonlyArray<[string, string]>): Storage {
+        const store = new Map<string, string>(entries);
+        const orderedKeys: (string | null)[] = [null, ...store.keys()];
+
+        return {
+          get length() {
+            return orderedKeys.length;
+          },
+          clear(): void {
+            store.clear();
+          },
+          getItem(key: string): string | null {
+            return store.get(key) ?? null;
+          },
+          key(index: number): string | null {
+            return orderedKeys[index] ?? null;
+          },
+          removeItem(key: string): void {
+            store.delete(key);
+          },
+          setItem(key: string, value: string): void {
+            store.set(key, value);
+            if (!orderedKeys.includes(key)) {
+              orderedKeys.push(key);
+            }
+          },
+        };
+      }
+
+      it('clear() should tolerate a null key returned by storage', async () => {
+        const nullHoleStorage = createNullHoleStorage([
+          ['mhClear__salt__', 'c2FsdA=='],
+          ['mhClear.a', '{"iv":"a","data":"b","timestamp":0}'],
+        ]);
+
+        const storage = await EncryptedStorage.create({
+          password: 'secure-password-123',
+          prefix: 'mhClear',
+          storage: nullHoleStorage,
+        });
+
+        expect(() => storage.clear()).not.toThrow();
+        // The prefixed entry is removed; the salt (no dot) is preserved.
+        expect(nullHoleStorage.getItem('mhClear.a')).toBeNull();
+        expect(nullHoleStorage.getItem('mhClear__salt__')).not.toBeNull();
+        storage.destroy();
+      });
+
+      it('keys() should tolerate a null key returned by storage', async () => {
+        const nullHoleStorage = createNullHoleStorage([
+          ['mhKeys__salt__', 'c2FsdA=='],
+          ['mhKeys.a', '{"iv":"a","data":"b","timestamp":0}'],
+        ]);
+
+        const storage = await EncryptedStorage.create({
+          password: 'secure-password-123',
+          prefix: 'mhKeys',
+          storage: nullHoleStorage,
+        });
+
+        let keys: readonly string[] = [];
+        expect(() => {
+          keys = storage.keys();
+        }).not.toThrow();
+        expect(keys).toEqual(['a']);
+        storage.destroy();
+      });
+    });
+  });
 });
