@@ -736,6 +736,20 @@ export class FormValidator {
     return validator(value, fieldName, form);
   }
 
+  /**
+   * Check whether async validation is currently in flight for a field.
+   *
+   * Returns true while the field's async validator is debouncing or its
+   * promise is still pending — useful for driving a per-field loading
+   * indicator. Always false for fields without a pending async validation.
+   *
+   * @param fieldName - The field name to check
+   * @returns Whether async validation is in flight for the field
+   */
+  isValidating(fieldName: string): boolean {
+    return this.debounceTimers.has(fieldName) || this.pendingValidations.has(fieldName);
+  }
+
   // =========================================================================
   // Event Handling
   // =========================================================================
@@ -758,6 +772,73 @@ export class FormValidator {
       }
 
       handler(data, result);
+    };
+
+    form.addEventListener('submit', submitHandler);
+
+    return (): void => {
+      form.removeEventListener('submit', submitHandler);
+    };
+  }
+
+  /**
+   * Attach async validation to the form submit event.
+   *
+   * Like {@link onSubmit}, but validates with {@link validateFormAsync} (sync
+   * rules plus async validators). Because the result is only known after an
+   * await, the native submit is **always** prevented — the handler is
+   * responsible for submitting on success (e.g. `fetch` or `form.submit()`).
+   *
+   * The handler always runs and receives the validation result; check
+   * `result.valid` to branch (consistent with {@link onSubmit}). Concurrent
+   * submits are ignored while a validation/handler cycle is in flight, so a
+   * double click or repeated Enter cannot trigger overlapping submissions.
+   *
+   * Note: async validators are UX, not an authority. Uniqueness and similar
+   * invariants must still be enforced server-side; a client check cannot close
+   * the time-of-check/time-of-use gap.
+   *
+   * @param form - The form element to attach to
+   * @param handler - Called with the form data and validation result
+   * @param options - Optional configuration
+   * @param options.onValidationStart - Called when async validation begins
+   * @param options.onValidationEnd - Called when async validation completes
+   * @returns Cleanup function
+   */
+  onSubmitAsync(
+    form: HTMLFormElement,
+    handler: (data: Record<string, unknown>, result: ValidationResult) => void | Promise<void>,
+    options?: {
+      onValidationStart?: () => void;
+      onValidationEnd?: () => void;
+    }
+  ): CleanupFn {
+    const { onValidationStart, onValidationEnd } = options ?? {};
+    let submitting = false;
+
+    const submitHandler = (event: SubmitEvent): void => {
+      // The result is only known asynchronously, so the native submit can
+      // never proceed: always prevent it and let the handler submit on success.
+      event.preventDefault();
+
+      // Ignore concurrent submits while a cycle is in flight.
+      if (submitting) {
+        return;
+      }
+      submitting = true;
+
+      onValidationStart?.();
+
+      void (async (): Promise<void> => {
+        try {
+          const result = await this.validateFormAsync(form);
+          onValidationEnd?.();
+          const data = FormSerializer.toObject(form);
+          await handler(data, result);
+        } finally {
+          submitting = false;
+        }
+      })();
     };
 
     form.addEventListener('submit', submitHandler);
@@ -794,6 +875,88 @@ export class FormValidator {
           handler(fieldName, result);
         }
       }
+    };
+
+    form.addEventListener(validateOn, fieldHandler);
+
+    return () => {
+      form.removeEventListener(validateOn, fieldHandler);
+    };
+  }
+
+  /**
+   * Attach real-time async validation to form fields.
+   *
+   * Like {@link onFieldChange}, but runs {@link validateFieldAsync} (synchronous
+   * rules plus the debounced async validator). Defaults to the `input` event,
+   * since async validation is most useful while typing.
+   *
+   * The optional `onValidationStart` / `onValidationEnd` callbacks bracket the
+   * in-flight async work to drive a per-field loading indicator. They fire at
+   * most once per validation cycle: when rapid input collapses several events
+   * into one debounced run, `onValidationStart` fires once and only the final,
+   * non-superseded run fires `onValidationEnd` and invokes `handler`.
+   *
+   * @param form - The form element to attach to
+   * @param handler - Called with the field name and result of each validation
+   * @param options - Optional configuration
+   * @param options.validateOn - Event to validate on (default: 'input')
+   * @param options.onValidationStart - Called when async validation begins for a field
+   * @param options.onValidationEnd - Called when async validation completes for a field
+   * @returns Cleanup function
+   */
+  onFieldChangeAsync(
+    form: HTMLFormElement,
+    handler: (fieldName: string, result: FieldValidationResult) => void,
+    options?: {
+      validateOn?: 'blur' | 'input' | 'change';
+      onValidationStart?: (fieldName: string) => void;
+      onValidationEnd?: (fieldName: string) => void;
+    }
+  ): CleanupFn {
+    const { validateOn = 'input', onValidationStart, onValidationEnd } = options ?? {};
+
+    // Track started-but-not-ended fields (to fire onValidationStart once) and a
+    // per-field sequence so only the latest run reports completion.
+    const inFlight = new Set<string>();
+    const sequence = new Map<string, number>();
+
+    const fieldHandler = (event: Event): void => {
+      const target = event.target;
+
+      if (
+        !(
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLSelectElement ||
+          target instanceof HTMLTextAreaElement
+        )
+      ) {
+        return;
+      }
+
+      const fieldName = target.name;
+      if (!fieldName || !(fieldName in this.rules)) {
+        return;
+      }
+
+      const runId = (sequence.get(fieldName) ?? 0) + 1;
+      sequence.set(fieldName, runId);
+
+      if (!inFlight.has(fieldName)) {
+        inFlight.add(fieldName);
+        onValidationStart?.(fieldName);
+      }
+
+      void this.validateFieldAsync(target).then((result) => {
+        // Ignore superseded runs: a newer event has started since this one,
+        // so let that later run report completion instead.
+        if (sequence.get(fieldName) !== runId) {
+          return;
+        }
+        inFlight.delete(fieldName);
+        onValidationEnd?.(fieldName);
+        handler(fieldName, result);
+      });
     };
 
     form.addEventListener(validateOn, fieldHandler);
