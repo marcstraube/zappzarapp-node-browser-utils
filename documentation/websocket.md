@@ -43,9 +43,13 @@ const ws = WebSocketManager.create({
   protocols: ['v1.protocol'], // Subprotocols (optional)
   reconnect: true, // Auto-reconnect on disconnect (default: true)
   maxReconnectAttempts: 10, // Max reconnection attempts (default: 10)
-  reconnectInterval: 1000, // Base reconnect delay ms (default: 1000)
-  maxReconnectInterval: 30000, // Max reconnect delay ms (default: 30000)
-  queueMessages: true, // Queue messages when disconnected (default: false)
+  reconnectDelay: 1000, // Base reconnect delay ms (default: 1000)
+  maxReconnectDelay: 30000, // Max reconnect delay ms (default: 30000)
+  reconnectMultiplier: 1.5, // Exponential backoff multiplier (default: 1.5)
+  heartbeatInterval: 0, // Heartbeat ping interval ms, 0 = disabled (default: 0)
+  heartbeatMessage: 'ping', // Heartbeat payload, string or () => unknown (default: 'ping')
+  queueMessages: true, // Queue messages when disconnected (default: true)
+  maxQueueSize: 100, // Max queued messages (default: 100)
   binaryType: 'arraybuffer', // Binary data type (default: 'blob')
   fallback: 'sse', // Fallback transport: 'polling' | 'sse' | 'none' (default: 'none')
   fallbackUrl: 'https://api.example.com/sse', // HTTP(S) receive endpoint (required if fallback set)
@@ -61,17 +65,20 @@ server contract each fallback expects.
 
 ### Methods
 
-| Method                       | Returns     | Description                                |
-| ---------------------------- | ----------- | ------------------------------------------ |
-| `connect()`                  | `void`      | Connect to WebSocket server                |
-| `disconnect(code?, reason?)` | `void`      | Disconnect from server                     |
-| `close(code?, reason?)`      | `void`      | Alias for disconnect                       |
-| `send(data)`                 | `boolean`   | Send message (returns true if sent/queued) |
-| `onOpen(handler)`            | `CleanupFn` | Listen for connection open                 |
-| `onClose(handler)`           | `CleanupFn` | Listen for connection close                |
-| `onError(handler)`           | `CleanupFn` | Listen for errors                          |
-| `onMessage(handler)`         | `CleanupFn` | Listen for messages                        |
-| `onStateChange(handler)`     | `CleanupFn` | Listen for state changes                   |
+| Method                     | Returns      | Description                                                           |
+| -------------------------- | ------------ | --------------------------------------------------------------------- |
+| `connect()`                | `void`       | Connect to the server (WebSocket, or fallback if configured)          |
+| `close(code?, reason?)`    | `void`       | Close the connection                                                  |
+| `send(data)`               | `boolean`    | Send a message (JSON-serialized unless a string); true if sent/queued |
+| `sendBinary(data)`         | `boolean`    | Send binary data (WebSocket only; returns false on a fallback)        |
+| `setBinaryType(type)`      | `void`       | Set the binary receive type (`'blob'` \| `'arraybuffer'`)             |
+| `getBinaryType()`          | `BinaryType` | Get the current binary receive type                                   |
+| `onOpen(handler)`          | `CleanupFn`  | Listen for connection open                                            |
+| `onClose(handler)`         | `CleanupFn`  | Listen for connection close                                           |
+| `onError(handler)`         | `CleanupFn`  | Listen for errors                                                     |
+| `onMessage(handler)`       | `CleanupFn`  | Listen for messages                                                   |
+| `onBinaryMessage(handler)` | `CleanupFn`  | Listen for binary messages (WebSocket only)                           |
+| `onStateChange(handler)`   | `CleanupFn`  | Listen for state changes                                              |
 
 ### Properties
 
@@ -124,7 +131,7 @@ const ws = WebSocketManager.create({
   url: 'wss://api.example.com/ws',
   reconnect: true,
   maxReconnectAttempts: 5,
-  reconnectInterval: 2000,
+  reconnectDelay: 2000,
 });
 
 ws.onStateChange((state) => {
@@ -206,16 +213,18 @@ const ws = WebSocketManager.create({
   binaryType: 'arraybuffer',
 });
 
-ws.onMessage((data) => {
+// Binary frames are delivered to onBinaryMessage (and also to onMessage).
+ws.onBinaryMessage((data) => {
   if (data instanceof ArrayBuffer) {
     const view = new Uint8Array(data);
     processBytes(view);
   }
 });
 
-// Send binary data
+// Send binary data with sendBinary() — send() would JSON-serialize it.
+// Binary is WebSocket-only; sendBinary() returns false on a fallback transport.
 const buffer = new ArrayBuffer(16);
-ws.send(buffer);
+ws.sendBinary(buffer);
 ```
 
 ### Cleanup
@@ -236,7 +245,7 @@ ws.connect();
 
 // Later: cleanup all handlers
 cleanups.forEach((cleanup) => cleanup());
-ws.disconnect();
+ws.close();
 ```
 
 ## Transport Fallback
