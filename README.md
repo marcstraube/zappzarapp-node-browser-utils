@@ -58,14 +58,14 @@ tree-shakeable, and fully tested.
 
 ### Network & Communication
 
-| Module    | Key Classes                   | Description                      |
-| --------- | ----------------------------- | -------------------------------- |
-| network   | `RetryQueue`, `NetworkStatus` | Retry queue with backoff         |
-| offline   | `OfflineQueue`                | IndexedDB-backed offline sync    |
-| websocket | `WebSocketManager`            | WebSocket with auto-reconnect    |
-| request   | `RequestInterceptor`          | Fetch middleware, auth, progress |
-| url       | `UrlBuilder`                  | URL building, query params       |
-| broadcast | `BroadcastManager`            | Cross-tab messaging              |
+| Module    | Key Classes                   | Description                           |
+| --------- | ----------------------------- | ------------------------------------- |
+| network   | `RetryQueue`, `NetworkStatus` | Retry queue with backoff              |
+| offline   | `OfflineQueue`                | IndexedDB-backed offline sync         |
+| websocket | `WebSocketManager`            | Auto-reconnect + SSE/polling fallback |
+| request   | `RequestInterceptor`          | Fetch middleware, auth, progress      |
+| url       | `UrlBuilder`                  | URL building, query params            |
+| broadcast | `BroadcastManager`            | Cross-tab messaging                   |
 
 ### Device & Environment
 

@@ -906,6 +906,19 @@ describe('WebSocketManager', () => {
         expect(result).toBe(false);
       });
 
+      it('should return false when sendBinary called before the socket opens', () => {
+        const ws = WebSocketManager.create({
+          url: 'wss://example.com',
+          reconnect: false,
+        });
+
+        ws.connect();
+        // Socket is created but still CONNECTING (readyState 0).
+        const result = ws.sendBinary(new ArrayBuffer(8));
+
+        expect(result).toBe(false);
+      });
+
       it('should return false when sendBinary throws', () => {
         const ws = WebSocketManager.create({
           url: 'wss://example.com',
@@ -1240,6 +1253,576 @@ describe('WebSocketManager', () => {
       expect(() => ws.connect()).toThrow(WebSocketError);
       expect(() => ws.connect()).toThrow('Failed to connect');
       expect(stateHandler).toHaveBeenCalledWith('disconnected');
+    });
+  });
+
+  describe('Transport Fallback', () => {
+    interface MockWs {
+      readyState: number;
+      binaryType: string;
+      close: ReturnType<typeof vi.fn>;
+      send: ReturnType<typeof vi.fn>;
+      onopen: (() => void) | null;
+      onclose: ((e: { code: number; reason: string }) => void) | null;
+      onerror: ((e: Event) => void) | null;
+      onmessage: ((e: { data: unknown }) => void) | null;
+    }
+
+    let wsInstances: MockWs[];
+    let esInstances: MockEventSource[];
+    let fetchMock: ReturnType<typeof vi.fn>;
+    let originalWs: typeof WebSocket;
+    let originalEventSource: typeof EventSource;
+    let originalFetch: typeof fetch;
+
+    class MockEventSource {
+      onopen: ((e: Event) => void) | null = null;
+      onmessage: ((e: MessageEvent) => void) | null = null;
+      onerror: ((e: Event) => void) | null = null;
+      close = vi.fn();
+
+      constructor(public url: string) {
+        esInstances.push(this);
+      }
+    }
+
+    const makeWs = (): MockWs => ({
+      readyState: 0,
+      binaryType: 'blob',
+      close: vi.fn(),
+      send: vi.fn(),
+      onopen: null,
+      onclose: null,
+      onerror: null,
+      onmessage: null,
+    });
+
+    const httpResponse = (body: string, ok = true): Response =>
+      ({ ok, text: (): Promise<string> => Promise.resolve(body) }) as unknown as Response;
+
+    const flush = async (): Promise<void> => {
+      for (let i = 0; i < 5; i++) {
+        await Promise.resolve();
+      }
+    };
+
+    const removeWebSocket = (): void => {
+      // @ts-expect-error - Testing WebSocket-unavailable environments
+      delete globalThis.WebSocket;
+    };
+
+    const lastWs = (): MockWs => {
+      const instance = wsInstances.at(-1);
+      if (instance === undefined) throw new Error('no WebSocket created');
+      return instance;
+    };
+
+    const lastEs = (): MockEventSource => {
+      const instance = esInstances.at(-1);
+      if (instance === undefined) throw new Error('no EventSource created');
+      return instance;
+    };
+
+    beforeEach(() => {
+      wsInstances = [];
+      esInstances = [];
+
+      const MockWebSocket = vi.fn().mockImplementation(function (this: void) {
+        const instance = makeWs();
+        wsInstances.push(instance);
+        return instance;
+      });
+      // @ts-expect-error - Mock WebSocket constants
+      MockWebSocket.CONNECTING = 0;
+      // @ts-expect-error - Mock WebSocket constants
+      MockWebSocket.OPEN = 1;
+      // @ts-expect-error - Mock WebSocket constants
+      MockWebSocket.CLOSING = 2;
+      // @ts-expect-error - Mock WebSocket constants
+      MockWebSocket.CLOSED = 3;
+      originalWs = globalThis.WebSocket;
+      globalThis.WebSocket = MockWebSocket as unknown as typeof WebSocket;
+
+      originalEventSource = globalThis.EventSource;
+      globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
+
+      originalFetch = globalThis.fetch;
+      fetchMock = vi.fn().mockResolvedValue(httpResponse(''));
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+    });
+
+    afterEach(() => {
+      globalThis.WebSocket = originalWs;
+      globalThis.EventSource = originalEventSource;
+      globalThis.fetch = originalFetch;
+      vi.useRealTimers();
+    });
+
+    const codeOf = (fn: () => unknown): string | undefined => {
+      try {
+        fn();
+      } catch (e) {
+        return (e as WebSocketError).code;
+      }
+      return undefined;
+    };
+
+    describe('configuration validation', () => {
+      it('should throw INVALID_CONFIG when fallback is set without fallbackUrl', () => {
+        expect(
+          codeOf(() => WebSocketManager.create({ url: 'wss://example.com', fallback: 'sse' }))
+        ).toBe('INVALID_CONFIG');
+        expect(
+          codeOf(() => WebSocketManager.create({ url: 'wss://example.com', fallback: 'polling' }))
+        ).toBe('INVALID_CONFIG');
+      });
+
+      it('should throw INVALID_URL when fallbackUrl is not http(s)', () => {
+        expect(
+          codeOf(() =>
+            WebSocketManager.create({
+              url: 'wss://example.com',
+              fallback: 'sse',
+              fallbackUrl: 'ws://example.com/sse',
+            })
+          )
+        ).toBe('INVALID_URL');
+      });
+
+      it('should throw INVALID_URL when fallbackSendUrl is not http(s)', () => {
+        expect(
+          codeOf(() =>
+            WebSocketManager.create({
+              url: 'wss://example.com',
+              fallback: 'sse',
+              fallbackUrl: 'https://example.com/sse',
+              fallbackSendUrl: 'ftp://example.com/send',
+            })
+          )
+        ).toBe('INVALID_URL');
+      });
+
+      it('should accept a valid fallback configuration', () => {
+        expect(() =>
+          WebSocketManager.create({
+            url: 'wss://example.com',
+            fallback: 'sse',
+            fallbackUrl: 'https://example.com/sse',
+          })
+        ).not.toThrow();
+      });
+    });
+
+    describe('transport selection', () => {
+      it('should use the SSE fallback when WebSocket is unsupported', () => {
+        removeWebSocket();
+
+        const ws = WebSocketManager.create({
+          url: 'wss://example.com',
+          fallback: 'sse',
+          fallbackUrl: 'https://example.com/sse',
+        });
+        const openHandler = vi.fn();
+        ws.onOpen(openHandler);
+
+        ws.connect();
+        expect(ws.activeTransport).toBe('sse');
+
+        lastEs().onopen?.(new Event('open'));
+        expect(openHandler).toHaveBeenCalled();
+        expect(ws.state).toBe('connected');
+      });
+
+      it('should use the polling fallback when WebSocket is unsupported', () => {
+        removeWebSocket();
+
+        const ws = WebSocketManager.create({
+          url: 'wss://example.com',
+          fallback: 'polling',
+          fallbackUrl: 'https://example.com/poll',
+        });
+
+        ws.connect();
+        expect(ws.activeTransport).toBe('polling');
+      });
+
+      it('should fall back when the WebSocket closes before opening', () => {
+        const ws = WebSocketManager.create({
+          url: 'wss://example.com',
+          fallback: 'polling',
+          fallbackUrl: 'https://example.com/poll',
+        });
+
+        ws.connect();
+        expect(ws.activeTransport).toBe('websocket');
+
+        // Connection errors and closes before ever opening (e.g. blocked by proxy).
+        lastWs().onclose?.({ code: 1006, reason: 'blocked' });
+        expect(ws.activeTransport).toBe('polling');
+      });
+
+      it('should fall back when the WebSocket constructor throws', () => {
+        const ThrowingWebSocket = vi.fn().mockImplementation(function (this: void) {
+          throw new Error('blocked');
+        });
+        // @ts-expect-error - Mock WebSocket constants
+        ThrowingWebSocket.CONNECTING = 0;
+        // @ts-expect-error - Mock WebSocket constants
+        ThrowingWebSocket.OPEN = 1;
+        // @ts-expect-error - Mock WebSocket constants
+        ThrowingWebSocket.CLOSING = 2;
+        // @ts-expect-error - Mock WebSocket constants
+        ThrowingWebSocket.CLOSED = 3;
+        globalThis.WebSocket = ThrowingWebSocket as unknown as typeof WebSocket;
+
+        const ws = WebSocketManager.create({
+          url: 'wss://example.com',
+          fallback: 'polling',
+          fallbackUrl: 'https://example.com/poll',
+        });
+
+        ws.connect();
+        expect(ws.activeTransport).toBe('polling');
+      });
+
+      it('should stay on WebSocket once it connects, even with a fallback configured', () => {
+        const ws = WebSocketManager.create({
+          url: 'wss://example.com',
+          fallback: 'sse',
+          fallbackUrl: 'https://example.com/sse',
+        });
+
+        ws.connect();
+        lastWs().readyState = 1;
+        lastWs().onopen?.();
+        expect(ws.activeTransport).toBe('websocket');
+        expect(ws.state).toBe('connected');
+
+        // A later drop is treated as transient: reconnect stays on WebSocket.
+        lastWs().readyState = 3;
+        lastWs().onclose?.({ code: 1006, reason: 'lost' });
+        expect(ws.activeTransport).toBe('websocket');
+      });
+    });
+
+    describe('SSE transport', () => {
+      const createSse = (
+        config: Partial<Parameters<typeof WebSocketManager.create>[0]> = {}
+      ): ReturnType<typeof WebSocketManager.create> => {
+        removeWebSocket();
+        return WebSocketManager.create({
+          url: 'wss://example.com',
+          fallback: 'sse',
+          fallbackUrl: 'https://example.com/sse',
+          ...config,
+        });
+      };
+
+      it('should deliver SSE messages parsed as JSON with a MessageEvent', () => {
+        const ws = createSse({ heartbeatInterval: 1000 });
+        const messageHandler = vi.fn();
+        ws.onMessage(messageHandler);
+
+        ws.connect();
+        lastEs().onopen?.(new Event('open'));
+        lastEs().onmessage?.(new MessageEvent('message', { data: '{"a":1}' }));
+
+        expect(messageHandler).toHaveBeenCalledWith({ a: 1 }, expect.any(MessageEvent));
+      });
+
+      it('should POST messages to the fallback URL by default', () => {
+        const ws = createSse();
+        ws.connect();
+        lastEs().onopen?.(new Event('open'));
+
+        ws.send({ hello: 'world' });
+        expect(fetchMock).toHaveBeenCalledWith(
+          'https://example.com/sse',
+          expect.objectContaining({ method: 'POST', body: JSON.stringify({ hello: 'world' }) })
+        );
+      });
+
+      it('should POST messages to a separate fallbackSendUrl when provided', () => {
+        const ws = createSse({ fallbackSendUrl: 'https://example.com/send' });
+        ws.connect();
+        lastEs().onopen?.(new Event('open'));
+
+        ws.send('hi');
+        expect(fetchMock).toHaveBeenCalledWith(
+          'https://example.com/send',
+          expect.objectContaining({ method: 'POST', body: 'hi' })
+        );
+      });
+
+      it('should not support binary sends', () => {
+        const ws = createSse();
+        ws.connect();
+        lastEs().onopen?.(new Event('open'));
+
+        expect(ws.sendBinary(new ArrayBuffer(8))).toBe(false);
+      });
+
+      it('should treat setBinaryType as a no-op on SSE', () => {
+        const ws = createSse();
+        ws.connect();
+        lastEs().onopen?.(new Event('open'));
+
+        expect(() => ws.setBinaryType('arraybuffer')).not.toThrow();
+        expect(ws.getBinaryType()).toBe('arraybuffer');
+      });
+
+      it('should reconnect after an SSE error', () => {
+        const ws = createSse({ reconnect: true, reconnectDelay: 1000 });
+        const stateHandler = vi.fn();
+        ws.onStateChange(stateHandler);
+
+        ws.connect();
+        lastEs().onopen?.(new Event('open'));
+        lastEs().onerror?.(new Event('error'));
+
+        expect(lastEs().close).toHaveBeenCalled();
+        expect(stateHandler).toHaveBeenCalledWith('reconnecting');
+      });
+
+      it('should report errors when a send POST rejects', async () => {
+        const ws = createSse();
+        const errorHandler = vi.fn();
+        ws.onError(errorHandler);
+
+        ws.connect();
+        lastEs().onopen?.(new Event('open'));
+
+        fetchMock.mockRejectedValueOnce(new Error('post failed'));
+        ws.send('boom');
+        await flush();
+
+        expect(errorHandler).toHaveBeenCalled();
+      });
+
+      it('should return false when a send throws synchronously', () => {
+        const ws = createSse();
+        ws.connect();
+        lastEs().onopen?.(new Event('open'));
+
+        fetchMock.mockImplementationOnce(() => {
+          throw new Error('sync failure');
+        });
+        expect(ws.send('x')).toBe(false);
+      });
+
+      it('should close cleanly when the connection is closed', () => {
+        const ws = createSse();
+        const closeHandler = vi.fn();
+        ws.onClose(closeHandler);
+
+        ws.connect();
+        lastEs().onopen?.(new Event('open'));
+        ws.close();
+
+        expect(lastEs().close).toHaveBeenCalled();
+        expect(ws.state).toBe('disconnected');
+        expect(closeHandler).toHaveBeenCalled();
+      });
+    });
+
+    describe('polling transport', () => {
+      const createPolling = (
+        config: Partial<Parameters<typeof WebSocketManager.create>[0]> = {}
+      ): ReturnType<typeof WebSocketManager.create> => {
+        removeWebSocket();
+        return WebSocketManager.create({
+          url: 'wss://example.com',
+          fallback: 'polling',
+          fallbackUrl: 'https://example.com/poll',
+          pollInterval: 1000,
+          ...config,
+        });
+      };
+
+      it('should poll for messages and respect the poll interval', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockResolvedValue(httpResponse('{"n":1}'));
+
+        const ws = createPolling();
+        const messageHandler = vi.fn();
+        const openHandler = vi.fn();
+        ws.onMessage(messageHandler);
+        ws.onOpen(openHandler);
+
+        ws.connect();
+        await flush();
+
+        expect(openHandler).toHaveBeenCalled();
+        expect(ws.state).toBe('connected');
+        expect(messageHandler).toHaveBeenCalledWith({ n: 1 }, expect.any(MessageEvent));
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+      });
+
+      it('should keep polling when the response body is empty', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockResolvedValue(httpResponse(''));
+
+        const ws = createPolling();
+        const messageHandler = vi.fn();
+        ws.onMessage(messageHandler);
+
+        ws.connect();
+        await flush();
+
+        expect(ws.state).toBe('connected');
+        expect(messageHandler).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+      });
+
+      it('should POST messages when sending', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockResolvedValue(httpResponse(''));
+
+        const ws = createPolling();
+        ws.connect();
+        await flush();
+
+        ws.send('ping');
+        expect(fetchMock).toHaveBeenCalledWith(
+          'https://example.com/poll',
+          expect.objectContaining({ method: 'POST', body: 'ping' })
+        );
+      });
+
+      it('should reconnect when a poll request rejects', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockRejectedValue(new Error('network'));
+
+        const ws = createPolling({ reconnect: true, reconnectDelay: 500 });
+        const stateHandler = vi.fn();
+        ws.onStateChange(stateHandler);
+
+        ws.connect();
+        await flush();
+
+        expect(stateHandler).toHaveBeenCalledWith('reconnecting');
+      });
+
+      it('should reconnect when a poll response is not ok', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockResolvedValue(httpResponse('', false));
+
+        const ws = createPolling({ reconnect: true, reconnectDelay: 500 });
+        const stateHandler = vi.fn();
+        ws.onStateChange(stateHandler);
+
+        ws.connect();
+        await flush();
+
+        expect(stateHandler).toHaveBeenCalledWith('reconnecting');
+      });
+
+      it('should stop polling after close', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockResolvedValue(httpResponse(''));
+
+        const ws = createPolling({ reconnect: false });
+        ws.connect();
+        await flush();
+
+        const callsAfterConnect = fetchMock.mock.calls.length;
+        ws.close();
+        await vi.advanceTimersByTimeAsync(3000);
+
+        expect(fetchMock.mock.calls.length).toBe(callsAfterConnect);
+        expect(ws.state).toBe('disconnected');
+      });
+
+      it('should not support binary sends', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockResolvedValue(httpResponse(''));
+
+        const ws = createPolling();
+        ws.connect();
+        await flush();
+
+        expect(ws.sendBinary(new ArrayBuffer(8))).toBe(false);
+      });
+
+      it('should report errors when a send POST rejects', async () => {
+        vi.useFakeTimers();
+        // GET polls resolve; the POST send rejects.
+        fetchMock.mockImplementation((_url: string, options?: RequestInit) =>
+          options?.method === 'POST'
+            ? Promise.reject(new Error('post failed'))
+            : Promise.resolve(httpResponse(''))
+        );
+
+        const ws = createPolling();
+        const errorHandler = vi.fn();
+        ws.onError(errorHandler);
+        ws.connect();
+        await flush();
+
+        ws.send('boom');
+        await flush();
+
+        expect(errorHandler).toHaveBeenCalled();
+      });
+
+      it('should return false when a send throws synchronously', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockImplementation((_url: string, options?: RequestInit) => {
+          if (options?.method === 'POST') throw new Error('sync failure');
+          return Promise.resolve(httpResponse(''));
+        });
+
+        const ws = createPolling();
+        ws.connect();
+        await flush();
+
+        expect(ws.send('x')).toBe(false);
+      });
+
+      it('should reconnect when reading the response body fails', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockResolvedValue({
+          ok: true,
+          text: (): Promise<string> => Promise.reject(new Error('read failed')),
+        } as unknown as Response);
+
+        const ws = createPolling({ reconnect: true, reconnectDelay: 500 });
+        const stateHandler = vi.fn();
+        ws.onStateChange(stateHandler);
+        ws.connect();
+        await flush();
+
+        expect(stateHandler).toHaveBeenCalledWith('reconnecting');
+      });
+    });
+
+    describe('message queue with fallback', () => {
+      it('should flush queued messages once the fallback connects', () => {
+        removeWebSocket();
+        fetchMock.mockResolvedValue(httpResponse(''));
+
+        const ws = WebSocketManager.create({
+          url: 'wss://example.com',
+          fallback: 'sse',
+          fallbackUrl: 'https://example.com/sse',
+          queueMessages: true,
+        });
+
+        // Queued while disconnected.
+        ws.send({ q: 1 });
+        ws.connect();
+        lastEs().onopen?.(new Event('open'));
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          'https://example.com/sse',
+          expect.objectContaining({ method: 'POST', body: JSON.stringify({ q: 1 }) })
+        );
+      });
     });
   });
 });

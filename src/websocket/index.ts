@@ -7,4 +7,6 @@ export {
   type WebSocketInstance,
   type BinaryType,
   type BinaryData,
+  type FallbackStrategy,
+  type TransportKind,
 } from './WebSocketManager.js';
