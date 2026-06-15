@@ -47,12 +47,14 @@ security-first design.
 
 ## Recipes
 
-| Recipe                                                  | Modules                                              |
-| ------------------------------------------------------- | ---------------------------------------------------- |
-| [Offline-First App](recipes/offline-first-app.md)       | WebSocket + OfflineQueue + Cache + IndexedDB         |
-| [Secure File Upload](recipes/secure-file-upload.md)     | RequestInterceptor + StreamProgress + Sanitize + CSP |
-| [Accessible Form](recipes/accessible-form.md)           | Form + Focus + Keyboard + A11y                       |
-| [Resilient API Client](recipes/resilient-api-client.md) | RequestInterceptor + RetryQueue + Cache (SWR)        |
+| Recipe                                                        | Modules                                              |
+| ------------------------------------------------------------- | ---------------------------------------------------- |
+| [Offline-First App](recipes/offline-first-app.md)             | WebSocket + OfflineQueue + Cache + IndexedDB         |
+| [Secure File Upload](recipes/secure-file-upload.md)           | RequestInterceptor + StreamProgress + Sanitize + CSP |
+| [Accessible Form](recipes/accessible-form.md)                 | Form + Focus + Keyboard + A11y                       |
+| [Resilient API Client](recipes/resilient-api-client.md)       | RequestInterceptor + RetryQueue + Cache (SWR)        |
+| [Real-Time Data Sync](recipes/real-time-data-sync.md)         | WebSocket + Cache + IndexedDB + Broadcast            |
+| [Progressive Enhancement](recipes/progressive-enhancement.md) | FeatureDetect + Network + Media                      |
 
 ## Guides
 
