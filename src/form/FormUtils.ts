@@ -206,7 +206,10 @@ export const FormUtils = {
    */
   setLoading(form: HTMLFormElement, submitButton?: HTMLButtonElement): CleanupFn {
     const originalButtonText = submitButton?.textContent ?? '';
-    const wasDisabled = new Map<HTMLElement, boolean>();
+    const wasDisabled = new Map<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement,
+      boolean
+    >();
 
     // Store original disabled state
     for (const element of Array.from(form.elements)) {
@@ -227,16 +230,10 @@ export const FormUtils = {
     }
 
     return () => {
-      // Restore original disabled state
+      // Restore original disabled state. The map only ever holds disableable
+      // elements (see the store loop above), so no instanceof re-check is needed.
       for (const [element, disabled] of wasDisabled) {
-        if (
-          element instanceof HTMLInputElement ||
-          element instanceof HTMLSelectElement ||
-          element instanceof HTMLTextAreaElement ||
-          element instanceof HTMLButtonElement
-        ) {
-          element.disabled = disabled;
-        }
+        element.disabled = disabled;
       }
 
       // Restore button text

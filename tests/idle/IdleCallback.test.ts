@@ -642,5 +642,16 @@ describe('IdleCallback', () => {
       await expect(promise).rejects.toThrow('string error');
       await expect(promise).rejects.toBeInstanceOf(Error);
     });
+
+    it('should be a no-op when batch cancel is called before schedule (line 317)', () => {
+      const fn = vi.fn();
+
+      const batched = IdleCallback.batch(fn);
+
+      // cancelFn is still null here, so the `if (cancelFn !== null)` guard is false
+      expect(() => batched.cancel()).not.toThrow();
+      expect(window.cancelIdleCallback).not.toHaveBeenCalled();
+      expect(fn).not.toHaveBeenCalled();
+    });
   });
 });

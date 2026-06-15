@@ -667,5 +667,108 @@ describe('MutationObserverWrapper', () => {
       // hadClass was true, hasClass is now false, so callback fires
       expect(callback).toHaveBeenCalledWith(false);
     });
+
+    it('should ignore non-attribute mutations in onAttributeChange (line 189)', () => {
+      const element = document.createElement('div');
+      const callback = vi.fn();
+
+      MutationObserverWrapper.onAttributeChange(element, callback);
+      const observer = MockMutationObserver._getLastInstance();
+
+      // A childList mutation must not trigger the attribute callback
+      observer._trigger([createMockMutationRecord('childList', element)]);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('should ignore attribute mutations without an attributeName in onAttributeChange (line 189)', () => {
+      const element = document.createElement('div');
+      const callback = vi.fn();
+
+      MutationObserverWrapper.onAttributeChange(element, callback);
+      const observer = MockMutationObserver._getLastInstance();
+
+      // type is 'attributes' but attributeName is null → second condition is false
+      observer._trigger([createMockMutationRecord('attributes', element, { attributeName: null })]);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('should ignore non-childList mutations in onChildChange (line 226)', () => {
+      const parent = document.createElement('div');
+      const callback = vi.fn();
+
+      MutationObserverWrapper.onChildChange(parent, callback);
+      const observer = MockMutationObserver._getLastInstance();
+
+      observer._trigger([
+        createMockMutationRecord('attributes', parent, { attributeName: 'class' }),
+      ]);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('should ignore non-characterData mutations in onTextChange (line 260)', () => {
+      const textNode = document.createTextNode('text');
+      const callback = vi.fn();
+
+      MutationObserverWrapper.onTextChange(textNode, callback);
+      const observer = MockMutationObserver._getLastInstance();
+
+      observer._trigger([createMockMutationRecord('childList', textNode)]);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('should ignore non-class attribute changes in onClassChange (line 292)', () => {
+      const element = document.createElement('div');
+      const callback = vi.fn();
+
+      MutationObserverWrapper.onClassChange(element, 'active', callback);
+      const observer = MockMutationObserver._getLastInstance();
+
+      // An 'id' attribute change reaches the inner callback but attrName !== 'class'
+      observer._trigger([
+        createMockMutationRecord('attributes', element, {
+          attributeName: 'id',
+          oldValue: 'old-id',
+        }),
+      ]);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('should skip non-Element added nodes in onElementAdded (line 320)', () => {
+      const parent = document.createElement('div');
+      const callback = vi.fn();
+
+      MutationObserverWrapper.onElementAdded(parent, '.item', callback);
+      const observer = MockMutationObserver._getLastInstance();
+
+      // A bare text node is not an Element and must be skipped
+      observer._trigger([
+        createMockMutationRecord('childList', parent, {
+          addedNodes: [document.createTextNode('hello')],
+        }),
+      ]);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('should skip non-Element removed nodes in onElementRemoved (line 350)', () => {
+      const parent = document.createElement('div');
+      const callback = vi.fn();
+
+      MutationObserverWrapper.onElementRemoved(parent, '.item', callback);
+      const observer = MockMutationObserver._getLastInstance();
+
+      observer._trigger([
+        createMockMutationRecord('childList', parent, {
+          removedNodes: [document.createTextNode('bye')],
+        }),
+      ]);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
   });
 });
