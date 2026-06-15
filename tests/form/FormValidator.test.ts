@@ -980,6 +980,134 @@ describe('FormValidator', () => {
   });
 
   // ===========================================================================
+  // onSubmitAsync
+  // ===========================================================================
+
+  describe('onSubmitAsync', () => {
+    // validateFormAsync uses no debounce timers, so real timers suffice; this
+    // flushes the pending microtask chain (validation + handler).
+    const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+    const submitEvent = (): Event => new Event('submit', { bubbles: true, cancelable: true });
+
+    it('should always prevent the native submit, even when valid', () => {
+      addInput(form, 'text', 'username', 'abcd');
+      const validator = FormValidator.create({
+        username: { asyncCustom: vi.fn().mockResolvedValue(null) },
+      });
+      validator.onSubmitAsync(form, vi.fn());
+
+      const event = submitEvent();
+      form.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('should call handler with data and a valid result', async () => {
+      addInput(form, 'text', 'username', 'abcd');
+      const asyncValidator = vi.fn().mockResolvedValue(null);
+      const validator = FormValidator.create({ username: { asyncCustom: asyncValidator } });
+
+      const handler = vi.fn();
+      validator.onSubmitAsync(form, handler);
+
+      form.dispatchEvent(submitEvent());
+      await flush();
+
+      expect(asyncValidator).toHaveBeenCalled();
+      expect(handler).toHaveBeenCalledWith(
+        { username: 'abcd' },
+        expect.objectContaining({ valid: true })
+      );
+    });
+
+    it('should call handler with an invalid result on failure', async () => {
+      addInput(form, 'text', 'username', 'abcd');
+      const validator = FormValidator.create({
+        username: { asyncCustom: vi.fn().mockResolvedValue('Taken') },
+      });
+
+      const handler = vi.fn();
+      validator.onSubmitAsync(form, handler);
+
+      form.dispatchEvent(submitEvent());
+      await flush();
+
+      expect(handler).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ valid: false, firstError: 'Taken' })
+      );
+    });
+
+    it('should fire onValidationStart and onValidationEnd', async () => {
+      addInput(form, 'text', 'username', 'abcd');
+      const validator = FormValidator.create({
+        username: { asyncCustom: vi.fn().mockResolvedValue(null) },
+      });
+
+      const onValidationStart = vi.fn();
+      const onValidationEnd = vi.fn();
+      validator.onSubmitAsync(form, vi.fn(), { onValidationStart, onValidationEnd });
+
+      form.dispatchEvent(submitEvent());
+      expect(onValidationStart).toHaveBeenCalledTimes(1);
+
+      await flush();
+      expect(onValidationEnd).toHaveBeenCalledTimes(1);
+    });
+
+    it('should ignore concurrent submits while validating', async () => {
+      addInput(form, 'text', 'username', 'abcd');
+      const asyncValidator = vi.fn().mockResolvedValue(null);
+      const validator = FormValidator.create({ username: { asyncCustom: asyncValidator } });
+
+      const handler = vi.fn();
+      validator.onSubmitAsync(form, handler);
+
+      form.dispatchEvent(submitEvent());
+      form.dispatchEvent(submitEvent());
+      await flush();
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(asyncValidator).toHaveBeenCalledTimes(1);
+    });
+
+    it('should keep blocking submits until an async handler settles', async () => {
+      addInput(form, 'text', 'username', 'abcd');
+      const validator = FormValidator.create({
+        username: { asyncCustom: vi.fn().mockResolvedValue(null) },
+      });
+
+      let release!: () => void;
+      const handler = vi.fn(() => new Promise<void>((resolve) => (release = resolve)));
+      validator.onSubmitAsync(form, handler);
+
+      form.dispatchEvent(submitEvent());
+      await flush();
+      // Handler is in flight; a second submit must be ignored.
+      form.dispatchEvent(submitEvent());
+      await flush();
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      release();
+      await flush();
+      // Now a fresh submit is allowed again.
+      form.dispatchEvent(submitEvent());
+      await flush();
+      expect(handler).toHaveBeenCalledTimes(2);
+    });
+
+    it('should return a cleanup function', () => {
+      const validator = FormValidator.create({ username: { asyncCustom: vi.fn() } });
+      const removeEventListenerSpy = vi.spyOn(form, 'removeEventListener');
+
+      const cleanup = validator.onSubmitAsync(form, vi.fn());
+      cleanup();
+
+      expect(removeEventListenerSpy).toHaveBeenCalledWith('submit', expect.any(Function));
+    });
+  });
+
+  // ===========================================================================
   // onFieldChange
   // ===========================================================================
 
@@ -1849,6 +1977,169 @@ describe('FormValidator', () => {
         const result = await resultPromise;
 
         expect(result.valid).toBe(true);
+      });
+    });
+
+    describe('isValidating', () => {
+      it('should return false when no validation is in flight', () => {
+        const validator = FormValidator.create({
+          username: { asyncCustom: vi.fn().mockResolvedValue(null) },
+        });
+
+        expect(validator.isValidating('username')).toBe(false);
+      });
+
+      it('should return false for a field without a pending async validation', () => {
+        const validator = FormValidator.create({ username: { required: true } });
+
+        expect(validator.isValidating('username')).toBe(false);
+        expect(validator.isValidating('unknown')).toBe(false);
+      });
+
+      it('should be true while debouncing and false once resolved', async () => {
+        const input = addInput(form, 'text', 'username', 'abcd');
+        const validator = FormValidator.create({
+          username: { asyncCustom: vi.fn().mockResolvedValue(null) },
+        });
+
+        const resultPromise = validator.validateFieldAsync(input);
+        expect(validator.isValidating('username')).toBe(true);
+
+        await vi.runAllTimersAsync();
+        await resultPromise;
+
+        expect(validator.isValidating('username')).toBe(false);
+      });
+    });
+
+    describe('onFieldChangeAsync', () => {
+      it('should attach with the default input event', () => {
+        const validator = FormValidator.create({ username: { asyncCustom: vi.fn() } });
+        const addEventListenerSpy = vi.spyOn(form, 'addEventListener');
+
+        validator.onFieldChangeAsync(form, vi.fn());
+
+        expect(addEventListenerSpy).toHaveBeenCalledWith('input', expect.any(Function));
+      });
+
+      it('should attach with a custom validateOn event', () => {
+        const validator = FormValidator.create({ username: { asyncCustom: vi.fn() } });
+        const addEventListenerSpy = vi.spyOn(form, 'addEventListener');
+
+        validator.onFieldChangeAsync(form, vi.fn(), { validateOn: 'blur' });
+
+        expect(addEventListenerSpy).toHaveBeenCalledWith('blur', expect.any(Function));
+      });
+
+      it('should return a cleanup function', () => {
+        const validator = FormValidator.create({ username: { asyncCustom: vi.fn() } });
+        const removeEventListenerSpy = vi.spyOn(form, 'removeEventListener');
+
+        const cleanup = validator.onFieldChangeAsync(form, vi.fn());
+        cleanup();
+
+        expect(removeEventListenerSpy).toHaveBeenCalledWith('input', expect.any(Function));
+      });
+
+      it('should call handler with async result and fire loading callbacks', async () => {
+        const input = addInput(form, 'text', 'username', 'abcd');
+        const asyncValidator = vi.fn().mockResolvedValue('Username taken');
+        const validator = FormValidator.create({ username: { asyncCustom: asyncValidator } });
+
+        const handler = vi.fn();
+        const onValidationStart = vi.fn();
+        const onValidationEnd = vi.fn();
+        validator.onFieldChangeAsync(form, handler, { onValidationStart, onValidationEnd });
+
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        // Start fires synchronously, before the debounce/await.
+        expect(onValidationStart).toHaveBeenCalledWith('username');
+
+        await vi.runAllTimersAsync();
+
+        expect(onValidationEnd).toHaveBeenCalledWith('username');
+        expect(handler).toHaveBeenCalledWith(
+          'username',
+          expect.objectContaining({ valid: false, firstError: 'Username taken' })
+        );
+      });
+
+      it('should ignore events for fields without rules', async () => {
+        addInput(form, 'text', 'extra', 'value');
+        const validator = FormValidator.create({ username: { asyncCustom: vi.fn() } });
+
+        const handler = vi.fn();
+        const onValidationStart = vi.fn();
+        validator.onFieldChangeAsync(form, handler, { onValidationStart });
+
+        const extra = form.querySelector('input[name="extra"]') as HTMLInputElement;
+        extra.dispatchEvent(new Event('input', { bubbles: true }));
+        await vi.runAllTimersAsync();
+
+        expect(handler).not.toHaveBeenCalled();
+        expect(onValidationStart).not.toHaveBeenCalled();
+      });
+
+      it('should ignore events from elements without a name', async () => {
+        const input = document.createElement('input');
+        input.type = 'text';
+        form.appendChild(input);
+        const validator = FormValidator.create({ username: { asyncCustom: vi.fn() } });
+
+        const handler = vi.fn();
+        validator.onFieldChangeAsync(form, handler);
+
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        await vi.runAllTimersAsync();
+
+        expect(handler).not.toHaveBeenCalled();
+      });
+
+      it('should fire start and end once across rapid debounced input', async () => {
+        const input = addInput(form, 'text', 'username', 'a');
+        const asyncValidator = vi.fn().mockResolvedValue(null);
+        const validator = FormValidator.create({ username: { asyncCustom: asyncValidator } });
+
+        const handler = vi.fn();
+        const onValidationStart = vi.fn();
+        const onValidationEnd = vi.fn();
+        validator.onFieldChangeAsync(form, handler, { onValidationStart, onValidationEnd });
+
+        // Three rapid input events before the debounce elapses.
+        input.value = 'ab';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.value = 'abc';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.value = 'abcd';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+
+        await vi.runAllTimersAsync();
+
+        expect(onValidationStart).toHaveBeenCalledTimes(1);
+        expect(onValidationEnd).toHaveBeenCalledTimes(1);
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(asyncValidator).toHaveBeenCalledTimes(1);
+        expect(asyncValidator).toHaveBeenCalledWith('abcd', 'username', form);
+      });
+
+      it('should allow a new validation cycle after completion', async () => {
+        const input = addInput(form, 'text', 'username', 'abcd');
+        const asyncValidator = vi.fn().mockResolvedValue(null);
+        const validator = FormValidator.create({ username: { asyncCustom: asyncValidator } });
+
+        const onValidationStart = vi.fn();
+        const onValidationEnd = vi.fn();
+        validator.onFieldChangeAsync(form, vi.fn(), { onValidationStart, onValidationEnd });
+
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        await vi.runAllTimersAsync();
+
+        input.value = 'efgh';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        await vi.runAllTimersAsync();
+
+        expect(onValidationStart).toHaveBeenCalledTimes(2);
+        expect(onValidationEnd).toHaveBeenCalledTimes(2);
       });
     });
   });
