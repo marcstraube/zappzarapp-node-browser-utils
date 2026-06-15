@@ -1,6 +1,7 @@
 # WebSocket Utilities
 
-Type-safe WebSocket wrapper with automatic reconnection and message queuing.
+Type-safe WebSocket wrapper with automatic reconnection, message queuing, and an
+optional SSE/polling fallback for environments that block WebSocket.
 
 ## Quick Start
 
@@ -42,36 +43,51 @@ const ws = WebSocketManager.create({
   protocols: ['v1.protocol'], // Subprotocols (optional)
   reconnect: true, // Auto-reconnect on disconnect (default: true)
   maxReconnectAttempts: 10, // Max reconnection attempts (default: 10)
-  reconnectInterval: 1000, // Base reconnect delay ms (default: 1000)
-  maxReconnectInterval: 30000, // Max reconnect delay ms (default: 30000)
-  queueMessages: true, // Queue messages when disconnected (default: false)
+  reconnectDelay: 1000, // Base reconnect delay ms (default: 1000)
+  maxReconnectDelay: 30000, // Max reconnect delay ms (default: 30000)
+  reconnectMultiplier: 1.5, // Exponential backoff multiplier (default: 1.5)
+  heartbeatInterval: 0, // Heartbeat ping interval ms, 0 = disabled (default: 0)
+  heartbeatMessage: 'ping', // Heartbeat payload, string or () => unknown (default: 'ping')
+  queueMessages: true, // Queue messages when disconnected (default: true)
+  maxQueueSize: 100, // Max queued messages (default: 100)
   binaryType: 'arraybuffer', // Binary data type (default: 'blob')
+  fallback: 'sse', // Fallback transport: 'polling' | 'sse' | 'none' (default: 'none')
+  fallbackUrl: 'https://api.example.com/sse', // HTTP(S) receive endpoint (required if fallback set)
+  fallbackSendUrl: 'https://api.example.com/send', // HTTP(S) send endpoint (default: fallbackUrl)
+  pollInterval: 3000, // Poll interval ms for 'polling' fallback (default: 3000)
 });
 ```
+
+See [Transport Fallback](#transport-fallback) for the transport behavior and the
+server contract each fallback expects.
 
 ## WebSocketInstance
 
 ### Methods
 
-| Method                       | Returns     | Description                                |
-| ---------------------------- | ----------- | ------------------------------------------ |
-| `connect()`                  | `void`      | Connect to WebSocket server                |
-| `disconnect(code?, reason?)` | `void`      | Disconnect from server                     |
-| `close(code?, reason?)`      | `void`      | Alias for disconnect                       |
-| `send(data)`                 | `boolean`   | Send message (returns true if sent/queued) |
-| `onOpen(handler)`            | `CleanupFn` | Listen for connection open                 |
-| `onClose(handler)`           | `CleanupFn` | Listen for connection close                |
-| `onError(handler)`           | `CleanupFn` | Listen for errors                          |
-| `onMessage(handler)`         | `CleanupFn` | Listen for messages                        |
-| `onStateChange(handler)`     | `CleanupFn` | Listen for state changes                   |
+| Method                     | Returns      | Description                                                           |
+| -------------------------- | ------------ | --------------------------------------------------------------------- |
+| `connect()`                | `void`       | Connect to the server (WebSocket, or fallback if configured)          |
+| `close(code?, reason?)`    | `void`       | Close the connection                                                  |
+| `send(data)`               | `boolean`    | Send a message (JSON-serialized unless a string); true if sent/queued |
+| `sendBinary(data)`         | `boolean`    | Send binary data (WebSocket only; returns false on a fallback)        |
+| `setBinaryType(type)`      | `void`       | Set the binary receive type (`'blob'` \| `'arraybuffer'`)             |
+| `getBinaryType()`          | `BinaryType` | Get the current binary receive type                                   |
+| `onOpen(handler)`          | `CleanupFn`  | Listen for connection open                                            |
+| `onClose(handler)`         | `CleanupFn`  | Listen for connection close                                           |
+| `onError(handler)`         | `CleanupFn`  | Listen for errors                                                     |
+| `onMessage(handler)`       | `CleanupFn`  | Listen for messages                                                   |
+| `onBinaryMessage(handler)` | `CleanupFn`  | Listen for binary messages (WebSocket only)                           |
+| `onStateChange(handler)`   | `CleanupFn`  | Listen for state changes                                              |
 
 ### Properties
 
-| Property            | Type             | Description                     |
-| ------------------- | ---------------- | ------------------------------- |
-| `url`               | `string`         | WebSocket URL                   |
-| `state`             | `WebSocketState` | Current connection state        |
-| `reconnectAttempts` | `number`         | Current reconnect attempt count |
+| Property            | Type                    | Description                                                    |
+| ------------------- | ----------------------- | -------------------------------------------------------------- |
+| `url`               | `string`                | WebSocket URL                                                  |
+| `state`             | `WebSocketState`        | Current connection state                                       |
+| `reconnectAttempts` | `number`                | Current reconnect attempt count                                |
+| `activeTransport`   | `TransportKind \| null` | Live transport: `'websocket'`, `'sse'`, `'polling'`, or `null` |
 
 ### States
 
@@ -115,7 +131,7 @@ const ws = WebSocketManager.create({
   url: 'wss://api.example.com/ws',
   reconnect: true,
   maxReconnectAttempts: 5,
-  reconnectInterval: 2000,
+  reconnectDelay: 2000,
 });
 
 ws.onStateChange((state) => {
@@ -197,16 +213,18 @@ const ws = WebSocketManager.create({
   binaryType: 'arraybuffer',
 });
 
-ws.onMessage((data) => {
+// Binary frames are delivered to onBinaryMessage (and also to onMessage).
+ws.onBinaryMessage((data) => {
   if (data instanceof ArrayBuffer) {
     const view = new Uint8Array(data);
     processBytes(view);
   }
 });
 
-// Send binary data
+// Send binary data with sendBinary() — send() would JSON-serialize it.
+// Binary is WebSocket-only; sendBinary() returns false on a fallback transport.
 const buffer = new ArrayBuffer(16);
-ws.send(buffer);
+ws.sendBinary(buffer);
 ```
 
 ### Cleanup
@@ -227,20 +245,75 @@ ws.connect();
 
 // Later: cleanup all handlers
 cleanups.forEach((cleanup) => cleanup());
-ws.disconnect();
+ws.close();
 ```
+
+## Transport Fallback
+
+Some environments block WebSocket connections (strict proxies, corporate
+firewalls). Set `fallback` to keep a live channel over **Server-Sent Events** or
+**HTTP polling**, using the exact same event-based API — your app code never
+branches on transport.
+
+```typescript
+const ws = WebSocketManager.create({
+  url: 'wss://api.example.com/ws',
+  fallback: 'sse',
+  fallbackUrl: 'https://api.example.com/sse',
+  fallbackSendUrl: 'https://api.example.com/send', // optional; defaults to fallbackUrl
+});
+
+ws.onMessage((data) => console.log(data)); // same handler regardless of transport
+ws.onStateChange(() => console.log('via', ws.activeTransport)); // 'websocket' | 'sse' | 'polling'
+ws.connect();
+```
+
+### Selection behavior
+
+`connect()` tries WebSocket first. If WebSocket is unavailable, or the
+connection errors/closes before it ever opens, the manager switches to the
+configured fallback. Once WebSocket has connected at least once, later drops are
+treated as transient and reconnects stay on WebSocket. Reconnect backoff,
+message queuing, and the state machine apply to every transport.
+
+> Automatic upgrade back to WebSocket while running on a fallback is not yet
+> implemented — once fallen back, the connection stays on the fallback
+> transport.
+
+### Server contract
+
+This is a browser-only library: it provides the client transports, but **your
+server must implement the matching endpoints**. There is no proprietary protocol
+— just plain HTTP.
+
+| Fallback    | Receive (`fallbackUrl`)                                                            | Send (`fallbackSendUrl`)                       |
+| ----------- | ---------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `'sse'`     | `GET` serving a `text/event-stream`; each event's `data` becomes a message         | `POST` with the serialized message as the body |
+| `'polling'` | `GET` returning the next queued message as the body (empty body = nothing pending) | `POST` with the serialized message as the body |
+
+Inbound text is JSON-parsed exactly like WebSocket text frames; non-JSON stays a
+string.
+
+### Limitations
+
+- **Binary is WebSocket-only.** SSE and polling are text channels:
+  `sendBinary()` returns `false` and no binary messages are received while on a
+  fallback.
+- **Heartbeats are WebSocket-only.** On polling the poll itself is the liveness
+  check, and SSE streams are server-driven.
 
 ## WebSocketError
 
 ### Error Codes
 
-| Code                | Description                             |
-| ------------------- | --------------------------------------- |
-| `NOT_SUPPORTED`     | WebSocket not available                 |
-| `CONNECTION_FAILED` | Failed to establish connection          |
-| `SEND_FAILED`       | Failed to send message                  |
-| `INVALID_STATE`     | Operation not valid in current state    |
-| `INVALID_URL`       | URL does not use ws:// or wss:// scheme |
+| Code                | Description                              |
+| ------------------- | ---------------------------------------- |
+| `NOT_SUPPORTED`     | WebSocket not available                  |
+| `CONNECTION_FAILED` | Failed to establish connection           |
+| `SEND_FAILED`       | Failed to send message                   |
+| `INVALID_STATE`     | Operation not valid in current state     |
+| `INVALID_URL`       | URL does not use ws:// or wss:// scheme  |
+| `INVALID_CONFIG`    | Fallback enabled without a `fallbackUrl` |
 
 ## Security Considerations
 
