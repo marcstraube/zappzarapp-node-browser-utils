@@ -274,6 +274,242 @@ describe('ShortcutManager', () => {
   });
 
   // ===========================================================================
+  // Editable-target skip
+  // ===========================================================================
+
+  describe('ignoreEditableTargets', () => {
+    function dispatchOn(
+      target: Element,
+      options: { key: string; ctrlKey?: boolean }
+    ): KeyboardEvent {
+      const event = new KeyboardEvent('keydown', {
+        key: options.key,
+        ctrlKey: options.ctrlKey ?? false,
+        bubbles: true,
+        cancelable: true,
+      });
+      target.dispatchEvent(event);
+      return event;
+    }
+
+    it('should fire on editable targets when not enabled (default)', () => {
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+      const handler = vi.fn();
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), handler);
+
+      dispatchOn(input, { key: 'r' });
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      cleanup();
+      input.remove();
+    });
+
+    it.each(['input', 'textarea', 'select'])(
+      'should skip handler and preventDefault for <%s>',
+      (tag) => {
+        const el = document.createElement(tag);
+        document.body.appendChild(el);
+        const handler = vi.fn();
+        const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), handler, {
+          ignoreEditableTargets: true,
+        });
+
+        const event = dispatchOn(el, { key: 'r' });
+
+        expect(handler).not.toHaveBeenCalled();
+        expect(event.defaultPrevented).toBe(false);
+        cleanup();
+        el.remove();
+      }
+    );
+
+    it('should skip when target is a contenteditable host', () => {
+      const host = document.createElement('div');
+      host.setAttribute('contenteditable', '');
+      document.body.appendChild(host);
+      const handler = vi.fn();
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), handler, {
+        ignoreEditableTargets: true,
+      });
+
+      dispatchOn(host, { key: 'r' });
+
+      expect(handler).not.toHaveBeenCalled();
+      cleanup();
+      host.remove();
+    });
+
+    it('should skip when target is nested inside a contenteditable host', () => {
+      const host = document.createElement('div');
+      host.setAttribute('contenteditable', '');
+      const child = document.createElement('span');
+      host.appendChild(child);
+      document.body.appendChild(host);
+      const handler = vi.fn();
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), handler, {
+        ignoreEditableTargets: true,
+      });
+
+      dispatchOn(child, { key: 'r' });
+
+      expect(handler).not.toHaveBeenCalled();
+      cleanup();
+      host.remove();
+    });
+
+    it('should NOT skip for contenteditable="false"', () => {
+      const el = document.createElement('div');
+      el.setAttribute('contenteditable', 'false');
+      document.body.appendChild(el);
+      const handler = vi.fn();
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), handler, {
+        ignoreEditableTargets: true,
+      });
+
+      dispatchOn(el, { key: 'r' });
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      cleanup();
+      el.remove();
+    });
+
+    it('should NOT skip for contenteditable="FALSE" (case-insensitive)', () => {
+      const el = document.createElement('div');
+      el.setAttribute('contenteditable', 'FALSE');
+      document.body.appendChild(el);
+      const handler = vi.fn();
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), handler, {
+        ignoreEditableTargets: true,
+      });
+
+      dispatchOn(el, { key: 'r' });
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      cleanup();
+      el.remove();
+    });
+
+    it('should skip when target is a non-HTML element inside contenteditable', () => {
+      const host = document.createElement('div');
+      host.setAttribute('contenteditable', '');
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      host.appendChild(svg);
+      document.body.appendChild(host);
+      const handler = vi.fn();
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), handler, {
+        ignoreEditableTargets: true,
+      });
+
+      dispatchOn(svg, { key: 'r' });
+
+      expect(handler).not.toHaveBeenCalled();
+      cleanup();
+      host.remove();
+    });
+
+    it('should still fire on non-editable targets when enabled', () => {
+      const div = document.createElement('div');
+      document.body.appendChild(div);
+      const handler = vi.fn();
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), handler, {
+        ignoreEditableTargets: true,
+      });
+
+      dispatchOn(div, { key: 'r' });
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      cleanup();
+      div.remove();
+    });
+
+    it('should fire when the target is not an element (document)', () => {
+      const handler = vi.fn();
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), handler, {
+        ignoreEditableTargets: true,
+      });
+
+      dispatchKeydown({ key: 'r' }); // dispatched on document -> target is document
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      cleanup();
+    });
+  });
+
+  // ===========================================================================
+  // Conditional handlers (return false to decline)
+  // ===========================================================================
+
+  describe('conditional handlers', () => {
+    it('should not preventDefault when the handler returns false', () => {
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), () => false);
+
+      const event = dispatchKeydown({ key: 'r' });
+
+      expect(event.defaultPrevented).toBe(false);
+      cleanup();
+    });
+
+    it('should preventDefault when the handler returns undefined', () => {
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), () => undefined);
+
+      const event = dispatchKeydown({ key: 'r' });
+
+      expect(event.defaultPrevented).toBe(true);
+      cleanup();
+    });
+
+    it('should not stop propagation when the handler returns false', () => {
+      const parentHandler = vi.fn();
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), () => false, {
+        stopPropagation: true,
+        stopImmediatePropagation: true,
+      });
+      document.addEventListener('keydown', parentHandler);
+
+      dispatchKeydown({ key: 'r' });
+
+      expect(parentHandler).toHaveBeenCalled();
+      cleanup();
+      document.removeEventListener('keydown', parentHandler);
+    });
+
+    it('should keep a once handler registered when it declines', () => {
+      const handler = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(undefined);
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), handler, { once: true });
+
+      dispatchKeydown({ key: 'r' }); // declines -> stays registered
+      dispatchKeydown({ key: 'r' }); // handles -> auto-removes
+      dispatchKeydown({ key: 'r' }); // already removed
+
+      expect(handler).toHaveBeenCalledTimes(2);
+      cleanup();
+    });
+
+    it('should receive the keyboard event', () => {
+      const handler = vi.fn();
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), handler);
+
+      const event = dispatchKeydown({ key: 'r' });
+
+      expect(handler).toHaveBeenCalledWith(event);
+      cleanup();
+    });
+
+    it('should consume the key for a value-returning (async) handler', () => {
+      // Only a literal false declines; a Promise (or any other value) consumes.
+      const cleanup = ShortcutManager.on(KeyboardShortcut.key('r'), async () => {
+        await Promise.resolve();
+      });
+
+      const event = dispatchKeydown({ key: 'r' });
+
+      expect(event.defaultPrevented).toBe(true);
+      cleanup();
+    });
+  });
+
+  // ===========================================================================
   // Convenience Methods
   // ===========================================================================
 
@@ -391,6 +627,21 @@ describe('ShortcutManager', () => {
 
       expect(group).toBeInstanceOf(ShortcutGroup);
     });
+
+    it('should pass default options to the group', () => {
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+      const handler = vi.fn();
+      const group = ShortcutManager.createGroup({ ignoreEditableTargets: true });
+      group.add(KeyboardShortcut.key('r'), handler);
+
+      const event = new KeyboardEvent('keydown', { key: 'r', bubbles: true, cancelable: true });
+      input.dispatchEvent(event);
+
+      expect(handler).not.toHaveBeenCalled();
+      group.cleanup();
+      input.remove();
+    });
   });
 });
 
@@ -461,6 +712,36 @@ describe('ShortcutGroup', () => {
       group.cleanup();
     });
 
+    it('should apply group default options', () => {
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+      const handler = vi.fn();
+      const group = new ShortcutGroup({ ignoreEditableTargets: true });
+      group.add(KeyboardShortcut.key('r'), handler);
+
+      const event = new KeyboardEvent('keydown', { key: 'r', bubbles: true, cancelable: true });
+      input.dispatchEvent(event);
+
+      expect(handler).not.toHaveBeenCalled();
+      group.cleanup();
+      input.remove();
+    });
+
+    it('should let per-add options override group defaults', () => {
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+      const handler = vi.fn();
+      const group = new ShortcutGroup({ ignoreEditableTargets: true });
+      group.add(KeyboardShortcut.key('r'), handler, { ignoreEditableTargets: false });
+
+      const event = new KeyboardEvent('keydown', { key: 'r', bubbles: true, cancelable: true });
+      input.dispatchEvent(event);
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      group.cleanup();
+      input.remove();
+    });
+
     it('should support chaining multiple adds', () => {
       const group = new ShortcutGroup();
       const handler1 = vi.fn();
@@ -510,6 +791,26 @@ describe('ShortcutGroup', () => {
       // Should only trigger once due to once: true in onEscape
       expect(handler).toHaveBeenCalledTimes(1);
       group.cleanup();
+    });
+
+    it('should be exempt from group ignoreEditableTargets default', () => {
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+      const handler = vi.fn();
+      const group = new ShortcutGroup({ ignoreEditableTargets: true });
+      group.addEscape(handler);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+
+      // Escape still fires while focus is in an input (close-modal-while-typing).
+      expect(handler).toHaveBeenCalledTimes(1);
+      group.cleanup();
+      input.remove();
     });
   });
 

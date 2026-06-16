@@ -24,6 +24,44 @@
 import { KeyboardShortcut, type ShortcutDefinition } from './KeyboardShortcut.js';
 
 /**
+ * Shortcut handler.
+ *
+ * Receives the originating {@link KeyboardEvent}. Return `false` to decline the
+ * key: the manager then skips `preventDefault`/`stopPropagation`, leaves the
+ * event for other listeners, and (with `once`) keeps the handler registered —
+ * the shortcut behaves as if it had not matched this time. Any other return
+ * value (incl. `undefined`) consumes the key per the handler options.
+ *
+ * The return type is `unknown` rather than `void | boolean` so existing
+ * value-returning handlers (e.g. `async`/Promise-returning) stay assignable;
+ * only a literal `false` declines.
+ */
+export type ShortcutHandler = (event: KeyboardEvent) => unknown;
+
+/**
+ * Determine whether an event target is an editable element: `<input>`,
+ * `<textarea>`, `<select>`, or an element inside a `[contenteditable]` host
+ * (nested elements included; `contenteditable="false"` does not count).
+ */
+function isEditableTarget(target: EventTarget | null): boolean {
+  // Element (not HTMLElement) so e.g. an SVG inside a contenteditable host counts.
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  const tag = target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+    return true;
+  }
+
+  // contenteditable is an enumerated attribute; its value is case-insensitive.
+  const editableHost = target.closest('[contenteditable]');
+  return (
+    editableHost !== null && editableHost.getAttribute('contenteditable')?.toLowerCase() !== 'false'
+  );
+}
+
+/**
  * Options for shortcut handlers.
  */
 export interface ShortcutHandlerOptions {
@@ -56,6 +94,15 @@ export interface ShortcutHandlerOptions {
    * @default false
    */
   readonly once?: boolean;
+
+  /**
+   * Skip the shortcut when the event target is an editable element
+   * (`<input>`, `<textarea>`, `<select>`, or a `[contenteditable]` host incl.
+   * nested elements). The handler is not called and the key is left untouched.
+   * Enable this for app-wide bare-key shortcuts so they don't fire while typing.
+   * @default false
+   */
+  readonly ignoreEditableTargets?: boolean;
 }
 
 import type { CleanupFn } from '../core/index.js';
@@ -71,7 +118,7 @@ export const ShortcutManager = {
    */
   on(
     shortcut: KeyboardShortcut | ShortcutDefinition,
-    handler: () => void,
+    handler: ShortcutHandler,
     options: ShortcutHandlerOptions = {}
   ): CleanupFn {
     const kbd = shortcut instanceof KeyboardShortcut ? shortcut : KeyboardShortcut.create(shortcut);
@@ -82,12 +129,21 @@ export const ShortcutManager = {
       stopImmediatePropagation = false,
       capture = false,
       once = false,
+      ignoreEditableTargets = false,
     } = options;
 
     let isActive = true;
 
     const listener = (event: KeyboardEvent): void => {
       if (!isActive || !kbd.matches(event)) {
+        return;
+      }
+      if (ignoreEditableTargets && isEditableTarget(event.target)) {
+        return;
+      }
+
+      // Run the handler first so it can decline the key by returning false.
+      if (handler(event) === false) {
         return;
       }
 
@@ -100,8 +156,6 @@ export const ShortcutManager = {
       if (stopImmediatePropagation) {
         event.stopImmediatePropagation();
       }
-
-      handler();
 
       if (once) {
         cleanup();
@@ -125,7 +179,7 @@ export const ShortcutManager = {
    * @param handler - Function to call when Escape is pressed
    * @returns Cleanup function
    */
-  onEscape(handler: () => void): CleanupFn {
+  onEscape(handler: ShortcutHandler): CleanupFn {
     return ShortcutManager.on(KeyboardShortcut.escape(), handler, {
       capture: true,
       stopImmediatePropagation: true,
@@ -140,25 +194,29 @@ export const ShortcutManager = {
    * @param options - Handler options
    * @returns Cleanup function
    */
-  onEnter(handler: () => void, options: ShortcutHandlerOptions = {}): CleanupFn {
+  onEnter(handler: ShortcutHandler, options: ShortcutHandlerOptions = {}): CleanupFn {
     return ShortcutManager.on(KeyboardShortcut.enter(), handler, options);
   },
 
   /**
    * Create a handler group for easy bulk cleanup.
    *
+   * Pass `defaultOptions` to apply them to every shortcut added to the group
+   * (per-`add` options take precedence). Use this to opt an app-wide shortcut
+   * surface into editable-target skipping once instead of per shortcut.
+   *
    * @example
    * ```TypeScript
-   * const group = ShortcutManager.createGroup();
-   * group.add(KeyboardShortcut.escape(), closeModal);
+   * const group = ShortcutManager.createGroup({ ignoreEditableTargets: true });
+   * group.add(KeyboardShortcut.key('r'), rotate);   // skipped while typing
    * group.add(KeyboardShortcut.ctrlKey('s'), save);
    *
    * // Later: cleanup all at once
    * group.cleanup();
    * ```
    */
-  createGroup(): ShortcutGroup {
-    return new ShortcutGroup();
+  createGroup(defaultOptions?: ShortcutHandlerOptions): ShortcutGroup {
+    return new ShortcutGroup(defaultOptions);
   },
 };
 
@@ -169,21 +227,32 @@ export class ShortcutGroup {
   private readonly cleanups: CleanupFn[] = [];
 
   /**
-   * Add a shortcut to this group.
+   * @param defaultOptions - Options applied to every {@link add} call
+   *   (per-`add` options take precedence). Does not affect {@link addEscape}.
+   */
+  constructor(private readonly defaultOptions: ShortcutHandlerOptions = {}) {}
+
+  /**
+   * Add a shortcut to this group. Group `defaultOptions` apply unless overridden
+   * by `options`.
    */
   add(
     shortcut: KeyboardShortcut | ShortcutDefinition,
-    handler: () => void,
+    handler: ShortcutHandler,
     options?: ShortcutHandlerOptions
   ): this {
-    this.cleanups.push(ShortcutManager.on(shortcut, handler, options));
+    this.cleanups.push(
+      ShortcutManager.on(shortcut, handler, { ...this.defaultOptions, ...options })
+    );
     return this;
   }
 
   /**
-   * Add an Escape handler to this group.
+   * Add an Escape handler to this group. Deliberately exempt from the group's
+   * `defaultOptions` (e.g. `ignoreEditableTargets`) so Escape still fires while
+   * focus is in an input — the common "close modal while typing" case.
    */
-  addEscape(handler: () => void): this {
+  addEscape(handler: ShortcutHandler): this {
     this.cleanups.push(ShortcutManager.onEscape(handler));
     return this;
   }

@@ -135,17 +135,24 @@ const user = storage.get('user-1');
 ### Keyboard Shortcuts
 
 ```typescript
-import { ShortcutManager } from '@zappzarapp/browser-utils/keyboard';
+import {
+  ShortcutManager,
+  KeyboardShortcut,
+} from '@zappzarapp/browser-utils/keyboard';
 
-const shortcuts = ShortcutManager.create();
+// Single shortcut — returns a cleanup function
+const cleanup = ShortcutManager.on(KeyboardShortcut.ctrlKey('s'), () =>
+  saveDocument()
+);
 
-shortcuts.register({
-  key: 's',
-  ctrlKey: true,
-  handler: () => saveDocument(),
-});
+// App-wide surface: bare keys skipped while typing, one undo/redo per platform
+const shortcuts = ShortcutManager.createGroup({ ignoreEditableTargets: true });
+shortcuts
+  .add(KeyboardShortcut.cmdOrCtrl('z'), undo)
+  .add(KeyboardShortcut.key('r'), () => (hasSelection() ? rotate() : false));
 
-shortcuts.destroy();
+cleanup();
+shortcuts.cleanup();
 ```
 
 ### Network Retry Queue
