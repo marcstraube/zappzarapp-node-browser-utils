@@ -5,6 +5,8 @@ overrides:
   qs: '>=6.15.2'
   js-yaml: '>=4.2.0'
   '@babel/core': '>=7.29.1'
+  dompurify: '>=3.4.9'
+  markdown-it: '>=14.1.2'
 
 allowBuilds:
   esbuild: false
