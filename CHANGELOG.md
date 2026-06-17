@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v2.1.0...v2.2.0) (2026-06-17)
+
+
+### Features
+
+* **keyboard:** make ShortcutManager adoptable as an app-wide shortcut surface ([#168](https://github.com/marcstraube/zappzarapp-node-browser-utils/issues/168)) ([119084c](https://github.com/marcstraube/zappzarapp-node-browser-utils/commit/119084c91d795c6e40d90705d5a74ffdb9dc59bf))
+
 ## [2.1.0](https://github.com/marcstraube/zappzarapp-node-browser-utils/compare/v2.0.0...v2.1.0) (2026-06-15)
 
 
