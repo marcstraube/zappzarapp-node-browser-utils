@@ -113,6 +113,49 @@ describe('KeyboardShortcut', () => {
     });
   });
 
+  describe('cmdOrCtrl', () => {
+    it('should create a Ctrl-or-Cmd shortcut', () => {
+      const shortcut = KeyboardShortcut.cmdOrCtrl('z');
+
+      expect(shortcut.key).toBe('z');
+      expect(shortcut.cmdOrCtrl).toBe(true);
+      expect(shortcut.ctrlKey).toBe(false);
+      expect(shortcut.metaKey).toBe(false);
+      expect(shortcut.shiftKey).toBe(false);
+      expect(shortcut.altKey).toBe(false);
+    });
+
+    it('should force ctrlKey/metaKey off even if passed via create', () => {
+      const shortcut = KeyboardShortcut.create({
+        key: 'z',
+        cmdOrCtrl: true,
+        ctrlKey: true,
+        metaKey: true,
+      });
+
+      expect(shortcut.cmdOrCtrl).toBe(true);
+      expect(shortcut.ctrlKey).toBe(false);
+      expect(shortcut.metaKey).toBe(false);
+    });
+
+    it('should default cmdOrCtrl to false', () => {
+      const shortcut = KeyboardShortcut.key('z');
+
+      expect(shortcut.cmdOrCtrl).toBe(false);
+    });
+  });
+
+  describe('cmdOrCtrlShift', () => {
+    it('should create a Ctrl-or-Cmd + Shift shortcut', () => {
+      const shortcut = KeyboardShortcut.cmdOrCtrlShift('z');
+
+      expect(shortcut.key).toBe('z');
+      expect(shortcut.cmdOrCtrl).toBe(true);
+      expect(shortcut.shiftKey).toBe(true);
+      expect(shortcut.altKey).toBe(false);
+    });
+  });
+
   describe('escape', () => {
     it('should create Escape key shortcut', () => {
       const shortcut = KeyboardShortcut.escape();
@@ -305,6 +348,66 @@ describe('KeyboardShortcut', () => {
 
         expect(shortcut.matches(event)).toBe(true);
       });
+
+      it('should not match Ctrl+Z against Ctrl+Shift+Z (exact modifiers)', () => {
+        const shortcut = KeyboardShortcut.ctrlKey('z');
+        const event = createKeyboardEvent({ key: 'z', ctrlKey: true, shiftKey: true });
+
+        expect(shortcut.matches(event)).toBe(false);
+      });
+    });
+
+    describe('cmdOrCtrl matching', () => {
+      it('should match when Ctrl is held', () => {
+        const shortcut = KeyboardShortcut.cmdOrCtrl('z');
+        const event = createKeyboardEvent({ key: 'z', ctrlKey: true });
+
+        expect(shortcut.matches(event)).toBe(true);
+      });
+
+      it('should match when Meta is held', () => {
+        const shortcut = KeyboardShortcut.cmdOrCtrl('z');
+        const event = createKeyboardEvent({ key: 'z', metaKey: true });
+
+        expect(shortcut.matches(event)).toBe(true);
+      });
+
+      it('should not match when neither Ctrl nor Meta is held', () => {
+        const shortcut = KeyboardShortcut.cmdOrCtrl('z');
+        const event = createKeyboardEvent({ key: 'z' });
+
+        expect(shortcut.matches(event)).toBe(false);
+      });
+
+      it('should respect exact Shift modifier (no Shift required)', () => {
+        const shortcut = KeyboardShortcut.cmdOrCtrl('z');
+        const event = createKeyboardEvent({ key: 'z', ctrlKey: true, shiftKey: true });
+
+        expect(shortcut.matches(event)).toBe(false);
+      });
+
+      it('should match Ctrl+Shift via cmdOrCtrlShift', () => {
+        const shortcut = KeyboardShortcut.cmdOrCtrlShift('z');
+        const eventCtrl = createKeyboardEvent({ key: 'z', ctrlKey: true, shiftKey: true });
+        const eventMeta = createKeyboardEvent({ key: 'z', metaKey: true, shiftKey: true });
+
+        expect(shortcut.matches(eventCtrl)).toBe(true);
+        expect(shortcut.matches(eventMeta)).toBe(true);
+      });
+
+      it('should respect exact Alt modifier', () => {
+        const shortcut = KeyboardShortcut.cmdOrCtrl('z');
+        const event = createKeyboardEvent({ key: 'z', ctrlKey: true, altKey: true });
+
+        expect(shortcut.matches(event)).toBe(false);
+      });
+
+      it('should not match when BOTH Ctrl and Meta are held (exactly one)', () => {
+        const shortcut = KeyboardShortcut.cmdOrCtrl('z');
+        const event = createKeyboardEvent({ key: 'z', ctrlKey: true, metaKey: true });
+
+        expect(shortcut.matches(event)).toBe(false);
+      });
     });
   });
 
@@ -384,6 +487,11 @@ describe('KeyboardShortcut', () => {
 
       expect(shortcut.toString()).toBe('Ctrl+F12');
     });
+
+    it('should render cmdOrCtrl in the non-Mac flavor (Ctrl)', () => {
+      expect(KeyboardShortcut.cmdOrCtrl('z').toString()).toBe('Ctrl+Z');
+      expect(KeyboardShortcut.cmdOrCtrlShift('z').toString()).toBe('Ctrl+Shift+Z');
+    });
   });
 
   describe('toMacString', () => {
@@ -445,6 +553,11 @@ describe('KeyboardShortcut', () => {
       const shortcut = KeyboardShortcut.metaKey('F12');
 
       expect(shortcut.toMacString()).toBe('\u2318F12');
+    });
+
+    it('should render cmdOrCtrl in the Mac flavor (Cmd symbol)', () => {
+      expect(KeyboardShortcut.cmdOrCtrl('z').toMacString()).toBe('\u2318Z');
+      expect(KeyboardShortcut.cmdOrCtrlShift('z').toMacString()).toBe('\u21e7\u2318Z');
     });
   });
 

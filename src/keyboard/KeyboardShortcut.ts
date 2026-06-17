@@ -35,6 +35,11 @@ export interface ShortcutDefinition {
   readonly altKey?: boolean;
   /** Require Meta key (Cmd on Mac) */
   readonly metaKey?: boolean;
+  /**
+   * Match when **either** Ctrl or Meta is held (other modifiers still exact).
+   * Supersedes `ctrlKey`/`metaKey`. Express "Cmd-or-Ctrl+Z" with one shortcut.
+   */
+  readonly cmdOrCtrl?: boolean;
 }
 
 export class KeyboardShortcut {
@@ -43,6 +48,7 @@ export class KeyboardShortcut {
   readonly shiftKey: boolean;
   readonly altKey: boolean;
   readonly metaKey: boolean;
+  readonly cmdOrCtrl: boolean;
 
   private constructor(def: Required<ShortcutDefinition>) {
     this.key = def.key;
@@ -50,6 +56,7 @@ export class KeyboardShortcut {
     this.shiftKey = def.shiftKey;
     this.altKey = def.altKey;
     this.metaKey = def.metaKey;
+    this.cmdOrCtrl = def.cmdOrCtrl;
   }
 
   // =========================================================================
@@ -60,12 +67,15 @@ export class KeyboardShortcut {
    * Create a custom shortcut.
    */
   static create(def: ShortcutDefinition): KeyboardShortcut {
+    const cmdOrCtrl = def.cmdOrCtrl ?? false;
     return new KeyboardShortcut({
       key: def.key,
-      ctrlKey: def.ctrlKey ?? false,
+      // cmdOrCtrl supersedes ctrlKey/metaKey; force them off to keep state consistent.
+      ctrlKey: cmdOrCtrl ? false : (def.ctrlKey ?? false),
       shiftKey: def.shiftKey ?? false,
       altKey: def.altKey ?? false,
-      metaKey: def.metaKey ?? false,
+      metaKey: cmdOrCtrl ? false : (def.metaKey ?? false),
+      cmdOrCtrl,
     });
   }
 
@@ -105,6 +115,22 @@ export class KeyboardShortcut {
   }
 
   /**
+   * Create a shortcut that matches Ctrl+Key **or** Cmd+Key.
+   * One registration for cross-platform actions like undo (`cmdOrCtrl('z')`).
+   */
+  static cmdOrCtrl(key: string): KeyboardShortcut {
+    return KeyboardShortcut.create({ key, cmdOrCtrl: true });
+  }
+
+  /**
+   * Create a shortcut that matches Ctrl+Shift+Key **or** Cmd+Shift+Key.
+   * One registration for actions like redo (`cmdOrCtrlShift('z')`).
+   */
+  static cmdOrCtrlShift(key: string): KeyboardShortcut {
+    return KeyboardShortcut.create({ key, cmdOrCtrl: true, shiftKey: true });
+  }
+
+  /**
    * Create Escape key shortcut.
    */
   static escape(): KeyboardShortcut {
@@ -132,6 +158,17 @@ export class KeyboardShortcut {
         ? event.key.toUpperCase() === this.key.toUpperCase()
         : event.key === this.key;
 
+    if (this.cmdOrCtrl) {
+      // Exactly one of Ctrl/Meta — holding both is a different chord and must not
+      // match, preserving the library's exact-modifier guarantee.
+      return (
+        keyMatches &&
+        event.ctrlKey !== event.metaKey &&
+        event.shiftKey === this.shiftKey &&
+        event.altKey === this.altKey
+      );
+    }
+
     return (
       keyMatches &&
       event.ctrlKey === this.ctrlKey &&
@@ -151,7 +188,8 @@ export class KeyboardShortcut {
   toString(): string {
     const parts: string[] = [];
 
-    if (this.ctrlKey) {
+    // cmdOrCtrl renders in this method's non-Mac flavor (Ctrl); toMacString shows Cmd.
+    if (this.ctrlKey || this.cmdOrCtrl) {
       parts.push('Ctrl');
     }
     if (this.altKey) {
@@ -184,7 +222,8 @@ export class KeyboardShortcut {
     if (this.shiftKey) {
       parts.push('⇧');
     }
-    if (this.metaKey) {
+    // cmdOrCtrl renders as Cmd in the Mac flavor; toString shows Ctrl.
+    if (this.metaKey || this.cmdOrCtrl) {
       parts.push('⌘');
     }
 
