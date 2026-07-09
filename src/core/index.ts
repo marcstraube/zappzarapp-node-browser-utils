@@ -17,6 +17,7 @@ export {
   CspError,
   ColorError,
   IntlError,
+  WakeLockError,
 } from './errors/index.js';
 export type {
   StorageErrorCode,
@@ -34,6 +35,7 @@ export type {
   CspErrorCode,
   ColorErrorCode,
   IntlErrorCode,
+  WakeLockErrorCode,
 } from './errors/index.js';
 
 // Result Type

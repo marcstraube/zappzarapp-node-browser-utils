@@ -220,5 +220,11 @@
     "path": "dist/cache/index.js",
     "import": "*",
     "limit": "6 kB"
+  },
+  {
+    "name": "wakelock",
+    "path": "dist/wakelock/index.js",
+    "import": "*",
+    "limit": "2 kB"
   }
 ]
