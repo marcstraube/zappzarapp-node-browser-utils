@@ -19,8 +19,4 @@ export type BinaryData = ArrayBuffer | ArrayBufferView | Blob;
  * WebSocket connection states.
  */
 export type ConnectionState =
-  | 'connecting'
-  | 'connected'
-  | 'disconnecting'
-  | 'disconnected'
-  | 'reconnecting';
+  'connecting' | 'connected' | 'disconnecting' | 'disconnected' | 'reconnecting';

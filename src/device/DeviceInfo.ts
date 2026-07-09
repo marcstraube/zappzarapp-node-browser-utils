@@ -57,10 +57,7 @@ export type Orientation = 'portrait' | 'landscape';
  * Full orientation type from the Screen Orientation API.
  */
 export type OrientationType =
-  | 'portrait-primary'
-  | 'portrait-secondary'
-  | 'landscape-primary'
-  | 'landscape-secondary';
+  'portrait-primary' | 'portrait-secondary' | 'landscape-primary' | 'landscape-secondary';
 
 /**
  * Orientation lock types supported by the Screen Orientation API.

@@ -20,10 +20,7 @@
 import { BrowserUtilsError } from './BrowserUtilsError.js';
 
 export type CookieErrorCode =
-  | 'COOKIE_DISABLED'
-  | 'COOKIE_TOO_LARGE'
-  | 'COOKIE_SET_FAILED'
-  | 'COOKIE_NOT_FOUND';
+  'COOKIE_DISABLED' | 'COOKIE_TOO_LARGE' | 'COOKIE_SET_FAILED' | 'COOKIE_NOT_FOUND';
 
 export class CookieError extends BrowserUtilsError {
   readonly code: CookieErrorCode;
