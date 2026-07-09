@@ -439,8 +439,7 @@ export const IndexedDBManager = {
 
       async get<T>(storeName: string, key: IDBValidKey): Promise<T | undefined> {
         return (await executeInTransaction(storeName, 'readonly', (store) => store.get(key))) as
-          | T
-          | undefined;
+          T | undefined;
       },
 
       async put<T>(storeName: string, value: T, key?: IDBValidKey): Promise<IDBValidKey> {

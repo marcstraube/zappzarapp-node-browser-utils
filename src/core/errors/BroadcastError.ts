@@ -24,10 +24,7 @@ import { BrowserUtilsError } from './BrowserUtilsError.js';
  * Broadcast channel error codes.
  */
 export type BroadcastErrorCode =
-  | 'NOT_SUPPORTED'
-  | 'CHANNEL_CLOSED'
-  | 'SEND_FAILED'
-  | 'CRYPTO_UNAVAILABLE';
+  'NOT_SUPPORTED' | 'CHANNEL_CLOSED' | 'SEND_FAILED' | 'CRYPTO_UNAVAILABLE';
 
 /**
  * Broadcast-specific error.

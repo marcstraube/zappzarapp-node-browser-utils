@@ -933,13 +933,11 @@ export class FormValidator {
     const fieldHandler = (event: Event): void => {
       const target = event.target;
 
-      if (
-        !(
-          target instanceof HTMLInputElement ||
-          target instanceof HTMLSelectElement ||
-          target instanceof HTMLTextAreaElement
-        )
-      ) {
+      if (!(
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement
+      )) {
         return;
       }
 

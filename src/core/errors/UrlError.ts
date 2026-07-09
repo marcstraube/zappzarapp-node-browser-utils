@@ -19,10 +19,7 @@
 import { BrowserUtilsError } from './BrowserUtilsError.js';
 
 export type UrlErrorCode =
-  | 'URL_INVALID_FORMAT'
-  | 'URL_DANGEROUS_PROTOCOL'
-  | 'URL_INVALID_STATE'
-  | 'URL_NAVIGATION_FAILED';
+  'URL_INVALID_FORMAT' | 'URL_DANGEROUS_PROTOCOL' | 'URL_INVALID_STATE' | 'URL_NAVIGATION_FAILED';
 
 export class UrlError extends BrowserUtilsError {
   readonly code: UrlErrorCode;

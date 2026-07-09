@@ -235,11 +235,7 @@ import { NetworkStatus } from '../network/index.js';
  * Offline queue error codes.
  */
 export type OfflineQueueErrorCode =
-  | 'NOT_SUPPORTED'
-  | 'DATABASE_ERROR'
-  | 'PROCESSOR_ERROR'
-  | 'CRYPTO_UNAVAILABLE'
-  | 'QUEUE_DESTROYED';
+  'NOT_SUPPORTED' | 'DATABASE_ERROR' | 'PROCESSOR_ERROR' | 'CRYPTO_UNAVAILABLE' | 'QUEUE_DESTROYED';
 
 /**
  * Offline queue-specific error.

@@ -28,14 +28,7 @@
 import type { CleanupFn } from '../core/index.js';
 
 export type ConnectionType =
-  | 'wifi'
-  | 'cellular'
-  | 'ethernet'
-  | 'bluetooth'
-  | 'wimax'
-  | 'other'
-  | 'none'
-  | 'unknown';
+  'wifi' | 'cellular' | 'ethernet' | 'bluetooth' | 'wimax' | 'other' | 'none' | 'unknown';
 
 export interface NetworkInfo {
   readonly online: boolean;
