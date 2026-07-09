@@ -153,6 +153,10 @@
       "types": "./dist/cache/index.d.ts",
       "import": "./dist/cache/index.js"
     },
+    "./wakelock": {
+      "types": "./dist/wakelock/index.d.ts",
+      "import": "./dist/wakelock/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
